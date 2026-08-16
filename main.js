@@ -444,18 +444,47 @@ function renderTabela() {
   tbody.innerHTML = '';
   itens.forEach((item, idx) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td class="desc-item"><b>${escapeHtml(item.descricao)}</b><br><span class="tag">${escapeHtml(item.detalhes)}</span></td>
-      <td style="text-align:center;">${item.qtd}</td>
-      <td style="text-align:right;">${fmt(item.unitario)}</td>
-      <td style="text-align:right;">${fmt(item.subtotal)}</td>
-      <td><button class="btn btn-danger" style="padding:6px 10px;" type="button" data-remove-item="${item.id}" aria-label="Remover item ${idx + 1}">✕</button></td>
-    `;
+    const colunaIndice = document.createElement('td');
+    const colunaDescricao = document.createElement('td');
+    const titulo = document.createElement('b');
+    const detalhes = document.createElement('span');
+    const colunaQuantidade = document.createElement('td');
+    const colunaUnitario = document.createElement('td');
+    const colunaSubtotal = document.createElement('td');
+    const colunaAcoes = document.createElement('td');
+    const botaoRemover = document.createElement('button');
+
+    colunaIndice.textContent = String(idx + 1);
+    colunaDescricao.className = 'desc-item';
+    titulo.textContent = String(item.descricao ?? '');
+    detalhes.className = 'tag';
+    detalhes.textContent = String(item.detalhes ?? '');
+    colunaDescricao.append(titulo, document.createElement('br'), detalhes);
+
+    colunaQuantidade.style.textAlign = 'center';
+    colunaQuantidade.textContent = String(item.qtd);
+    colunaUnitario.style.textAlign = 'right';
+    colunaUnitario.textContent = fmt(item.unitario);
+    colunaSubtotal.style.textAlign = 'right';
+    colunaSubtotal.textContent = fmt(item.subtotal);
+
+    botaoRemover.className = 'btn btn-danger';
+    botaoRemover.style.padding = '6px 10px';
+    botaoRemover.type = 'button';
+    botaoRemover.textContent = '✕';
+    botaoRemover.setAttribute('aria-label', `Remover item ${idx + 1}`);
+    botaoRemover.addEventListener('click', () => removeItem(item.id));
+    colunaAcoes.appendChild(botaoRemover);
+
+    tr.append(
+      colunaIndice,
+      colunaDescricao,
+      colunaQuantidade,
+      colunaUnitario,
+      colunaSubtotal,
+      colunaAcoes
+    );
     tbody.appendChild(tr);
-  });
-  tbody.querySelectorAll('[data-remove-item]').forEach(botao => {
-    botao.addEventListener('click', () => removeItem(Number(botao.dataset.removeItem)));
   });
 
   renderTotais();
