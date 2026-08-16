@@ -556,6 +556,8 @@
     .cols-4 { grid-template-columns: 1fr 1fr; }
     .dashboard-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .dashboard-overview-grid { grid-template-columns: 1fr; }
+    .prospect-form { grid-template-columns: 1fr 1fr; }
+    .prospect-form .btn { width: 100%; }
     .historico-filtros { grid-template-columns: minmax(220px, 1.6fr) repeat(2, minmax(120px, 1fr)) minmax(140px, 1fr) auto; }
   }
   @media (max-width: 640px) {
