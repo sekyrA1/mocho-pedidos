@@ -503,6 +503,11 @@ function renderTabela() {
 
 function renderTotais() {
   const { subtotal, descontoPct, desconto, frete, total } = calcTotais();
+  const parcelasCampo = document.getElementById('parcelas');
+  const valorParcelaCampo = document.getElementById('valorParcela');
+  const parcelas = Math.max(1, parseInt(parcelasCampo?.value, 10) || 1);
+  if (parcelasCampo && String(parcelasCampo.value) !== String(parcelas)) parcelasCampo.value = parcelas;
+  if (valorParcelaCampo) valorParcelaCampo.value = (total / parcelas).toFixed(2);
   const tfoot = document.getElementById('tfootItens');
   tfoot.innerHTML = `
     <tr><td colspan="3" style="text-align:right;">Subtotal</td><td style="text-align:right;">—</td><td style="text-align:right;">${fmt(subtotal)}</td><td></td></tr>
@@ -528,13 +533,14 @@ function dadosPedido() {
   const telefone = campo('telefone');
   const data = document.getElementById('data').value || new Date().toISOString().split('T')[0];
   const { subtotal, descontoPct, desconto, frete, total } = calcTotais();
+  const parcelas = Math.max(1, parseInt(campo('parcelas'), 10) || 1);
   return {
     pedido, cliente, telefone, data, subtotal, descontoPct, desconto, frete, total,
     codigoEvento: campo('codigoEvento'), cpf: campo('cpfCnpj'), nascimento: campo('nascimento'), cnpj: campo('cnpj'),
     email: campo('email'), profissao: campo('profissao'), rua: campo('rua'), numero: campo('numero'),
     complemento: campo('complemento'), bairro: campo('bairro'), cidade: campo('cidade'), uf: campo('uf'), cep: campo('cep'),
     medidaAltura: campo('medidaAltura'), peso: campo('peso'), valorRecebido: parseFloat(campo('valorRecebido')) || 0,
-    parcelas: Math.max(1, parseInt(campo('parcelas'), 10) || 1), valorParcela: parseFloat(campo('valorParcela')) || 0,
+    parcelas, valorParcela: Number((total / parcelas).toFixed(2)),
     espessura: campo('espessura'), pistao: campo('pistao'), corAssento: campo('corAssento'), corEstrutura: campo('corEstrutura'), representante: campo('representante'), localAssinatura: campo('localAssinatura'),
     mSela: true, tamanhoSela: campo('linhaSoft'), observacoesPedido: campo('observacoesPedido')
   };
@@ -2216,7 +2222,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnPreencherTeste').addEventListener('click', preencherPedidoTeste);
   document.getElementById('btnSair').addEventListener('click', sairDaSessao);
   document.getElementById('prospeccaoForm')?.addEventListener('submit', buscarProspecoes);
-  ['desconto', 'frete'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
+  ['desconto', 'frete', 'parcelas'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
+  renderTotais();
 
   renderTabela();
 });

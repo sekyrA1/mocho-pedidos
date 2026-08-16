@@ -15,6 +15,11 @@
     --shadow: 0 18px 45px rgba(44, 55, 108, .13), inset 0 1px 0 rgba(255,255,255,.55);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scrollbar-width: thin; scrollbar-color: #6c63c9 rgba(11, 14, 34, .78); }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { border-radius: 999px; background: rgba(11, 14, 34, .78); }
+  *::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: linear-gradient(180deg, #c51c2a, #6c63c9) padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #e43a4a, #8178ef) padding-box; }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
@@ -41,6 +46,7 @@
   body.dashboard-dark .config-steps { border-color: rgba(161,171,230,.12); }
   body.dashboard-dark .history-dialog { background: #151837; }
   body.dashboard-dark .empty-state { border-color: rgba(161,171,230,.2); background: rgba(6,8,23,.24); }
+  body.dashboard-dark { scrollbar-color: #756be0 #0b0e22; }
   body::before, body::after {
     content: '';
     position: fixed;
@@ -318,6 +324,9 @@
 
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field label { font-size: .68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+  .field-hint { display: block; margin-top: 5px; color: var(--muted); font-size: .66rem; line-height: 1.35; }
+  input[readonly] { cursor: not-allowed; opacity: .82; }
+  body.dashboard-dark input[readonly] { border-color: rgba(141,130,255,.34); background: rgba(68,60,150,.2); color: #f0f1ff; }
   .sela-confirmada {
     min-height: 42px; display: flex; align-items: center; gap: 9px; padding: 0 13px;
     color: var(--ink); font-size: .84rem; font-weight: 700;

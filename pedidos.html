@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=dashboard-20260816b">
+<link rel="stylesheet" href="style.css?v=payments-scroll-20260816">
 </head>
 <body class="dashboard-dark">
 
@@ -156,7 +156,7 @@
         <div class="grid cols-3">
           <div class="field"><label for="valorRecebido">Valor recebido (R$)</label><input id="valorRecebido" type="number" min="0" step="0.01" value="0"></div>
           <div class="field"><label for="parcelas">Nº de parcelas</label><input id="parcelas" type="number" min="1" step="1" value="1"></div>
-          <div class="field"><label for="valorParcela">Valor da parcela (R$)</label><input id="valorParcela" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="valorParcela">Valor da parcela (R$)</label><input id="valorParcela" type="number" min="0" step="0.01" value="0.00" readonly aria-readonly="true"><small class="field-hint">Calculado automaticamente: total ÷ parcelas.</small></div>
           <div class="field"><label for="espessura">Linha da espuma</label><select id="espessura"><option value="">Selecione a linha</option><option value="3 cm">Linha de espuma 3 cm</option><option value="5 cm">Linha de espuma 5 cm</option></select></div>
           <div class="field"><label for="pistao">Pistão</label><select id="pistao"><option value="">Não informado</option><option value="P">P</option><option value="M">M</option></select></div>
           <div class="field"><label for="corAssento">Cor do assento</label><select id="corAssento"><option value="Preto">Preto</option><option value="Azul Marinho">Azul marinho</option><option value="Caramelo">Caramelo</option><option value="Marrom">Marrom</option><option value="Creme">Creme</option><option value="Vermelho">Vermelho</option><option value="Verde Musgo">Verde musgo</option></select></div>
@@ -393,6 +393,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.102.0/dist/umd/supabase.min.js" integrity="sha384-1qxdq7qui0E5OGQx7KlSCCpPydLIt8lgUjqM3jGxWLXq9AIGC661VIvU/NPT6BQP" crossorigin="anonymous"></script>
 <script src="supabase-client.js?v=dashboard-20260816"></script>
 <script src="auth-guard.js?v=dashboard-20260816"></script>
-<script src="main.js?v=dashboard-20260816"></script>
+<script src="main.js?v=payments-scroll-20260816"></script>
 </body>
 </html>
