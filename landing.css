@@ -113,6 +113,7 @@
     backdrop-filter: blur(12px);
     transition: all .25s ease;
   }
+  .theme-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .theme-toggle:hover {
     transform: scale(1.06);
     border-color: var(--accent);
@@ -159,6 +160,18 @@
   body.dark-theme .stool-preview { background: radial-gradient(circle at center, rgba(35,40,85,.8), rgba(15,18,40,.6)); }
   body.dark-theme .btn-secondary, body.dark-theme .w-opt, body.dark-theme .carousel-arrow, body.dark-theme .btn-card { background: rgba(255,255,255,.06); color: #fff; border-color: rgba(161,171,230,.16); }
   body.dark-theme .section-sela { background: linear-gradient(135deg, #0d1024 0%, #080a16 100%); }
+  body.dark-theme .section-modelos { border-color: rgba(161,171,230,.14); }
+  body.dark-theme .section-depoimentos { background: linear-gradient(145deg, rgba(20,23,49,.96), rgba(12,14,31,.96)); border-color: rgba(161,171,230,.14); }
+  body.dark-theme .section-diferenciais { background: linear-gradient(135deg, #10143c, #211a3c); }
+  body.dark-theme .model-card { background: linear-gradient(145deg, rgba(28,31,65,.88), rgba(17,19,42,.82)); border-color: rgba(161,171,230,.15); box-shadow: 0 20px 44px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.035); }
+  body.dark-theme .model-icon { background: rgba(255,255,255,.06); border-color: rgba(161,171,230,.16); }
+  body.dark-theme .model-foot { border-color: rgba(161,171,230,.13); }
+  body.dark-theme .testi-text { color: var(--ink-soft); }
+  body.dark-theme .sela-media { background: #11142c; border-color: rgba(161,171,230,.18); box-shadow: 0 18px 40px rgba(0,0,0,.3); }
+  body.dark-theme .carousel-arrow { border-color: rgba(161,171,230,.22); }
+  body.dark-theme .carousel-arrow:hover:not(:disabled) { background: rgba(255,255,255,.08); border-color: rgba(161,171,230,.42); }
+  body.dark-theme .carousel-piston::before { background: #252b63; }
+  body.dark-theme footer { background: rgba(7,9,20,.8); border-color: rgba(161,171,230,.12); }
 
   /* ---------- HERO ---------- */
   .hero-wrap {
