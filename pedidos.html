@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=prospection-20260815">
+<link rel="stylesheet" href="style.css?v=dashboard-20260816">
 </head>
 <body class="dashboard-dark">
 
@@ -56,13 +56,43 @@
       <h1>Painel de pedidos</h1>
       <p>Crie, acompanhe e exporte pedidos de fabricação em um só lugar.</p>
     </div>
-    <span class="dashboard-sync" id="dashboardSync">Conectando ao banco…</span>
+    <div class="dashboard-head-actions">
+      <label class="dashboard-periodo"><span>Período</span><select id="dashboardPeriodo" aria-label="Período dos indicadores"><option value="mes" selected>Este mês</option><option value="trimestre">Últimos 3 meses</option><option value="ano">Este ano</option><option value="todos">Todos os pedidos</option></select></label>
+      <button class="btn btn-ghost dashboard-refresh" id="btnAtualizarDashboard" type="button">Atualizar</button>
+      <span class="dashboard-sync" id="dashboardSync">Conectando ao banco…</span>
+    </div>
   </section>
   <section class="dashboard-metrics" aria-label="Indicadores dos pedidos">
-    <article class="metric-card"><small>Pedidos no mês</small><strong id="metricPedidos">—</strong><em id="metricPedidosMeta">Dados reais</em></article>
+    <article class="metric-card"><small id="metricPedidosTitulo">Pedidos no mês</small><strong id="metricPedidos">—</strong><em id="metricPedidosMeta">Dados reais</em></article>
     <article class="metric-card"><small>Em produção</small><strong id="metricProducao">—</strong><em id="metricProducaoMeta">Status ativos</em></article>
+    <article class="metric-card"><small>Concluídos</small><strong id="metricConcluidos">—</strong><em id="metricConcluidosMeta">Pedidos entregues</em></article>
+    <article class="metric-card"><small>Em andamento</small><strong id="metricAndamento">—</strong><em id="metricAndamentoMeta">Aguardando conclusão</em></article>
     <article class="metric-card"><small>Faturamento</small><strong id="metricFaturamento">—</strong><em id="metricFaturamentoMeta">Pedidos confirmados</em></article>
     <article class="metric-card"><small>Ticket médio</small><strong id="metricTicket">—</strong><em id="metricTicketMeta">Base real</em></article>
+  </section>
+  <section class="dashboard-quick-actions" aria-label="Ações rápidas">
+    <div><strong>Atalhos da operação</strong><span>Comece uma tarefa sem procurar no menu.</span></div>
+    <div class="quick-action-list">
+      <button class="btn btn-primary" type="button" data-dashboard-nav="novo">＋ Novo pedido</button>
+      <button class="btn btn-outline" type="button" data-dashboard-nav="historico">Ver pedidos</button>
+      <button class="btn btn-ghost" type="button" data-dashboard-nav="prospeccao">Prospecção RJ</button>
+    </div>
+  </section>
+  <section class="dashboard-overview-grid" aria-label="Resumo operacional">
+    <section class="card dashboard-pipeline-card" aria-labelledby="pipelineTitulo">
+      <div class="card-title" id="pipelineTitulo"><span class="ico">↗</span> Fluxo dos pedidos</div>
+      <p class="card-sub">Acompanhe onde cada pedido está parado.</p>
+      <div class="dashboard-pipeline" id="dashboardPipeline" aria-live="polite"></div>
+    </section>
+    <section class="card dashboard-alerts-card" aria-labelledby="alertasTitulo">
+      <div class="card-title" id="alertasTitulo"><span class="ico">!</span> Atenção da equipe</div>
+      <p class="card-sub">Pendências que merecem uma ação.</p>
+      <div class="dashboard-alerts" id="dashboardAlerts" aria-live="polite"></div>
+    </section>
+  </section>
+  <section class="card dashboard-recent-card" aria-labelledby="recentesTitulo">
+    <div class="dashboard-section-head"><div><div class="card-title" id="recentesTitulo"><span class="ico">◷</span> Atividade recente</div><p class="card-sub">Os últimos pedidos atualizados pela equipe.</p></div><button class="btn btn-ghost" type="button" data-dashboard-nav="historico">Abrir histórico</button></div>
+    <div class="dashboard-recent-list" id="dashboardRecentes" aria-live="polite"></div>
   </section>
   <section class="card dashboard-chart-card" aria-labelledby="graficoPedidosTitulo">
     <div class="card-title" id="graficoPedidosTitulo"><span class="ico">↗</span> Evolução de pedidos</div>
@@ -251,9 +281,10 @@
       <p class="card-sub">Pedidos registrados pela equipe no painel.</p>
       <div class="historico-filtros" role="search" aria-label="Buscar pedidos">
         <label class="historico-busca"><span aria-hidden="true">⌕</span><input id="historicoBusca" type="search" autocomplete="off" placeholder="Nome, telefone, e-mail, pedido, CPF ou CNPJ…" aria-label="Buscar por dados do pedido"></label>
-        <label><span>Status</span><select id="historicoStatus" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="active">Em andamento</option><option value="delivered">Concluídos</option><option value="canceled">Cancelados</option></select></label>
+        <label><span>Status</span><select id="historicoStatus" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="active">Em andamento</option><option value="draft">Rascunhos</option><option value="confirmed">Confirmados</option><option value="in_production">Em produção</option><option value="quality_check">Em conferência</option><option value="ready">Prontos</option><option value="delivered">Concluídos</option><option value="canceled">Cancelados</option></select></label>
         <label><span>De</span><input id="historicoDe" type="date" aria-label="Data inicial"></label>
         <label><span>Até</span><input id="historicoAte" type="date" aria-label="Data final"></label>
+        <label><span>Ordenar</span><select id="historicoOrdenar" aria-label="Ordenar pedidos"><option value="recentes">Mais recentes</option><option value="antigos">Mais antigos</option><option value="maior_valor">Maior valor</option><option value="menor_valor">Menor valor</option><option value="cliente">Cliente A–Z</option></select></label>
         <button class="btn btn-ghost" id="historicoLimpar" type="button">Limpar</button>
       </div>
       <div class="historico-resumo" id="historicoResumo" aria-live="polite"></div>
@@ -360,8 +391,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.102.0/dist/umd/supabase.min.js" integrity="sha384-1qxdq7qui0E5OGQx7KlSCCpPydLIt8lgUjqM3jGxWLXq9AIGC661VIvU/NPT6BQP" crossorigin="anonymous"></script>
-<script src="supabase-client.js?v=prospection-20260815"></script>
-<script src="auth-guard.js?v=prospection-20260815"></script>
-<script src="main.js?v=prospection-20260815"></script>
+<script src="supabase-client.js?v=dashboard-20260816"></script>
+<script src="auth-guard.js?v=dashboard-20260816"></script>
+<script src="main.js?v=dashboard-20260816"></script>
 </body>
 </html>

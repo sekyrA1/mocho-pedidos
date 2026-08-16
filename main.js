@@ -1160,6 +1160,8 @@ function mapearPedido(row, itensPorPedido) {
     email: customer.email || snapshot.email || '—',
     data: dataBrasileira(row.issue_date || row.created_at?.slice(0, 10) || ''),
     issueDate: row.issue_date || row.created_at?.slice(0, 10) || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
     produto: item.product_name || 'Mocho Sela',
     valor: Number(row.total || 0),
     status: STATUS_LABELS[statusCode] || statusCode,
@@ -1223,7 +1225,7 @@ async function carregarDadosRemotos() {
   try {
     const { data: pedidos, error: erroPedidos } = await window.appSupabase
       .from('orders')
-      .select('id, order_number, status, issue_date, subtotal, discount_pct, discount_amount, freight, total, amount_received, installments, installment_amount, representative, signature_city, notes, customer_snapshot, order_snapshot, created_at, customers(*)')
+      .select('id, order_number, status, issue_date, subtotal, discount_pct, discount_amount, freight, total, amount_received, installments, installment_amount, representative, signature_city, notes, customer_snapshot, order_snapshot, created_at, updated_at, customers(*)')
       .order('issue_date', { ascending: false })
       .order('created_at', { ascending: false });
     if (erroPedidos) throw erroPedidos;
@@ -1283,25 +1285,135 @@ async function carregarDadosRemotos() {
   }
 }
 
-function renderMetricas(pedidos) {
+let DASHBOARD_PERIODO = 'mes';
+
+function dataPedido(pedido, campo = 'issueDate') {
+  const valor = campo === 'updatedAt' ? pedido.updatedAt : pedido[campo];
+  if (!valor) return null;
+  const data = new Date(`${String(valor).slice(0, 10)}T00:00:00`);
+  return Number.isNaN(data.getTime()) ? null : data;
+}
+
+function dentroDoPeriodoDashboard(pedido) {
+  if (DASHBOARD_PERIODO === 'todos') return true;
+  const data = dataPedido(pedido);
+  if (!data) return false;
   const hoje = new Date();
-  const mesAtual = pedidos.filter(pedido => {
-    if (!pedido.issueDate) return false;
-    const data = new Date(`${pedido.issueDate}T00:00:00`);
-    return data.getFullYear() === hoje.getFullYear() && data.getMonth() === hoje.getMonth() && pedido.statusCode !== 'canceled';
-  });
-  const ativos = pedidos.filter(pedido => pedido.statusCode !== 'canceled');
-  const emProducao = pedidos.filter(pedido => ['in_production', 'quality_check'].includes(pedido.statusCode));
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  if (DASHBOARD_PERIODO === 'trimestre') inicio.setMonth(inicio.getMonth() - 2);
+  if (DASHBOARD_PERIODO === 'ano') inicio.setMonth(0);
+  return data >= inicio && data <= hoje;
+}
+
+function textoPeriodoDashboard() {
+  return ({ mes: 'no mês', trimestre: 'nos últimos 3 meses', ano: 'no ano', todos: 'em todos os pedidos' })[DASHBOARD_PERIODO] || 'no período';
+}
+
+function renderMetricas(pedidos) {
+  const periodo = pedidos.filter(dentroDoPeriodoDashboard);
+  const ativos = periodo.filter(pedido => pedido.statusCode !== 'canceled');
+  const emProducao = ativos.filter(pedido => ['in_production', 'quality_check'].includes(pedido.statusCode));
+  const concluidos = ativos.filter(pedido => pedido.statusCode === 'delivered');
+  const andamento = ativos.filter(pedido => pedido.statusCode !== 'delivered');
   const faturamento = ativos.reduce((total, pedido) => total + pedido.valor, 0);
   const ticket = ativos.length ? faturamento / ativos.length : 0;
-  document.getElementById('metricPedidos').textContent = mesAtual.length;
-  document.getElementById('metricPedidosMeta').textContent = `${mesAtual.length === 1 ? 'pedido registrado' : 'pedidos registrados'} no mês`;
+  const titulo = document.getElementById('metricPedidosTitulo');
+  if (titulo) titulo.textContent = `Pedidos ${textoPeriodoDashboard()}`;
+  document.getElementById('metricPedidos').textContent = ativos.length;
+  document.getElementById('metricPedidosMeta').textContent = `${ativos.length === 1 ? 'pedido registrado' : 'pedidos registrados'} ${textoPeriodoDashboard()}`;
   document.getElementById('metricProducao').textContent = emProducao.length;
   document.getElementById('metricProducaoMeta').textContent = 'Em produção ou conferência';
+  document.getElementById('metricConcluidos').textContent = concluidos.length;
+  document.getElementById('metricConcluidosMeta').textContent = `Entregues ${textoPeriodoDashboard()}`;
+  document.getElementById('metricAndamento').textContent = andamento.length;
+  document.getElementById('metricAndamentoMeta').textContent = 'Aguardando conclusão';
   document.getElementById('metricFaturamento').textContent = fmt(faturamento);
-  document.getElementById('metricFaturamentoMeta').textContent = 'Pedidos não cancelados';
+  document.getElementById('metricFaturamentoMeta').textContent = `Pedidos não cancelados ${textoPeriodoDashboard()}`;
   document.getElementById('metricTicket').textContent = fmt(ticket);
   document.getElementById('metricTicketMeta').textContent = ativos.length ? 'Média por pedido' : 'Sem pedidos registrados';
+  renderDashboardResumo(pedidos);
+}
+
+function criarResumoBotao(texto, classe, aoClicar) {
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = classe;
+  botao.textContent = texto;
+  botao.addEventListener('click', aoClicar);
+  return botao;
+}
+
+function irParaHistoricoComStatus(status = 'all') {
+  const campo = document.getElementById('historicoStatus');
+  if (campo) campo.value = status;
+  HISTORICO_FILTROS = { ...HISTORICO_FILTROS, status };
+  window.navegarDashboard?.('historico');
+  renderHistoricoPedidos();
+}
+
+function diasDesdePedido(pedido) {
+  const data = dataPedido(pedido, 'updatedAt') || dataPedido(pedido) || dataPedido(pedido, 'createdAt');
+  if (!data) return 0;
+  return Math.max(0, Math.floor((Date.now() - data.getTime()) / 86400000));
+}
+
+function renderDashboardResumo(pedidos) {
+  const pipeline = document.getElementById('dashboardPipeline');
+  const alertas = document.getElementById('dashboardAlerts');
+  const recentes = document.getElementById('dashboardRecentes');
+  if (!pipeline || !alertas || !recentes) return;
+
+  pipeline.innerHTML = '';
+  STATUS_SEQUENCE.forEach(statusCode => {
+    const quantidade = pedidos.filter(pedido => pedido.statusCode === statusCode).length;
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = `pipeline-step pipeline-${statusCode}`;
+    botao.setAttribute('aria-label', `${quantidade} ${STATUS_LABELS[statusCode]}. Filtrar pedidos.`);
+    botao.innerHTML = `<span class="pipeline-step-label">${escapeHtml(STATUS_LABELS[statusCode])}</span><strong>${quantidade}</strong><span class="pipeline-step-track"><i style="width:${Math.min(100, quantidade ? 100 : 0)}%"></i></span>`;
+    botao.addEventListener('click', () => irParaHistoricoComStatus(statusCode));
+    pipeline.appendChild(botao);
+  });
+
+  const ativos = pedidos.filter(pedido => !['delivered', 'canceled'].includes(pedido.statusCode));
+  const parados = ativos.filter(pedido => diasDesdePedido(pedido) >= 7);
+  const semContato = ativos.filter(pedido => !pedido.telefone || pedido.telefone === '—' || !pedido.email || pedido.email === '—');
+  const semValor = ativos.filter(pedido => pedido.valor <= 0);
+  const listaAlertas = [
+    { quantidade: parados.length, titulo: 'Pedidos parados há 7 dias', texto: 'Revise o próximo passo da produção.', status: 'active' },
+    { quantidade: semContato.length, titulo: 'Pedidos sem contato completo', texto: 'Confira telefone e e-mail do cliente.', status: 'active' },
+    { quantidade: semValor.length, titulo: 'Pedidos sem valor total', texto: 'Verifique preço, desconto e frete.', status: 'active' }
+  ].filter(item => item.quantidade > 0);
+  alertas.innerHTML = '';
+  if (!listaAlertas.length) {
+    const ok = document.createElement('div');
+    ok.className = 'dashboard-empty dashboard-empty-success';
+    ok.innerHTML = '<strong>Operação em dia</strong><span>Nenhuma pendência prioritária encontrada.</span>';
+    alertas.appendChild(ok);
+  } else {
+    listaAlertas.forEach(item => {
+      const linha = document.createElement('button');
+      linha.type = 'button';
+      linha.className = 'dashboard-alert';
+      linha.innerHTML = `<strong>${item.quantidade}</strong><span><b>${escapeHtml(item.titulo)}</b>${escapeHtml(item.texto)}</span><i aria-hidden="true">→</i>`;
+      linha.addEventListener('click', () => irParaHistoricoComStatus(item.status));
+      alertas.appendChild(linha);
+    });
+  }
+
+  recentes.innerHTML = '';
+  const listaRecentes = [...pedidos].sort((a, b) => String(b.updatedAt || b.issueDate || '').localeCompare(String(a.updatedAt || a.issueDate || ''))).slice(0, 5);
+  if (!listaRecentes.length) {
+    recentes.innerHTML = '<div class="dashboard-empty"><strong>Nenhum pedido registrado</strong><span>Crie o primeiro pedido para acompanhar a operação.</span></div>';
+    return;
+  }
+  listaRecentes.forEach(pedido => {
+    const linha = document.createElement('div');
+    linha.className = 'dashboard-recent-row';
+    linha.innerHTML = `<div><strong>${escapeHtml(pedido.id)}</strong><span>${escapeHtml(pedido.cliente)} · ${escapeHtml(pedido.data || '—')}</span></div><div class="dashboard-recent-value"><b>${escapeHtml(fmt(pedido.valor))}</b><span class="status-pedido ${['in_production', 'quality_check'].includes(pedido.statusCode) ? 'producao' : ''}">${escapeHtml(pedido.status)}</span></div>`;
+    linha.appendChild(criarResumoBotao('Ver', 'btn btn-ghost', () => abrirHistorico(pedido.id)));
+    recentes.appendChild(linha);
+  });
 }
 
 let pedidoHistoricoAtual = null;
@@ -1345,10 +1457,11 @@ function iniciarNavegacaoDashboard() {
     botoes.forEach(botao => botao.classList.toggle('active', botao.dataset.dashboardNav === destino));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  window.navegarDashboard = navegar;
   botoes.forEach(botao => botao.addEventListener('click', () => navegar(botao.dataset.dashboardNav)));
 }
 
-let HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '' };
+let HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '', ordenar: 'recentes' };
 
 function podeGerenciarPedidos() {
   return ['admin', 'sales'].includes(window.currentAuth?.profile?.role);
@@ -1370,6 +1483,24 @@ function filtrarHistoricoPedidos() {
   });
 }
 
+function ordenarHistoricoPedidos(pedidos) {
+  const resultado = [...pedidos];
+  const compararTexto = (a, b) => String(a || '').localeCompare(String(b || ''), 'pt-BR', { sensitivity: 'base' });
+  switch (HISTORICO_FILTROS.ordenar) {
+    case 'antigos':
+      return resultado.sort((a, b) => compararTexto(a.issueDate, b.issueDate));
+    case 'maior_valor':
+      return resultado.sort((a, b) => b.valor - a.valor);
+    case 'menor_valor':
+      return resultado.sort((a, b) => a.valor - b.valor);
+    case 'cliente':
+      return resultado.sort((a, b) => compararTexto(a.cliente, b.cliente));
+    case 'recentes':
+    default:
+      return resultado.sort((a, b) => compararTexto(b.issueDate, a.issueDate));
+  }
+}
+
 function criarBotaoHistorico(texto, classe, ariaLabel, aoClicar) {
   const botao = document.createElement('button');
   botao.className = `btn ${classe}`;
@@ -1383,11 +1514,12 @@ function criarBotaoHistorico(texto, classe, ariaLabel, aoClicar) {
 function renderHistoricoPedidos() {
   const lista = document.getElementById('historicoPedidos');
   if (!lista) return;
-  const filtrados = filtrarHistoricoPedidos();
+  const filtrados = ordenarHistoricoPedidos(filtrarHistoricoPedidos());
   const resumo = document.getElementById('historicoResumo');
   if (resumo) {
+    const valorFiltrado = filtrados.reduce((total, pedido) => total + pedido.valor, 0);
     resumo.textContent = HISTORICO_PEDIDOS.length
-      ? `${filtrados.length} ${filtrados.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'} de ${HISTORICO_PEDIDOS.length}.`
+      ? `${filtrados.length} ${filtrados.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'} de ${HISTORICO_PEDIDOS.length} · ${fmt(valorFiltrado)} no recorte.`
       : 'Nenhum pedido registrado ainda.';
   }
   lista.innerHTML = '';
@@ -1593,8 +1725,10 @@ function renderProspecoesSalvas() {
   const resumo = document.getElementById('prospeccaoSalvosResumo');
   if (!lista) return;
   lista.innerHTML = '';
+  const novos = PROSPECTS_SALVOS.filter(item => item.status === 'new').length;
+  const qualificados = PROSPECTS_SALVOS.filter(item => item.status === 'qualified').length;
   if (resumo) resumo.textContent = PROSPECTS_SALVOS.length
-    ? `${PROSPECTS_SALVOS.length} ${PROSPECTS_SALVOS.length === 1 ? 'lead salvo' : 'leads salvos'}.`
+    ? `${PROSPECTS_SALVOS.length} ${PROSPECTS_SALVOS.length === 1 ? 'lead salvo' : 'leads salvos'} · ${novos} novos · ${qualificados} qualificados.`
     : 'Nenhum lead salvo.';
   PROSPECTS_SALVOS.slice(0, 12).forEach(prospect => {
     const item = document.createElement('article');
@@ -1606,16 +1740,68 @@ function renderProspecoesSalvas() {
     const status = document.createElement('span');
     status.className = 'status-pedido';
     status.textContent = `${PROSPECT_STATUS_LABELS[prospect.status] || prospect.status} · ${prospect.priority === 'high' ? 'Alta prioridade' : prospect.priority === 'low' ? 'Baixa prioridade' : 'Prioridade média'}`;
-    item.append(nome, local, status);
+    const controles = document.createElement('div');
+    controles.className = 'prospect-salvo-controles';
+    const statusSelect = document.createElement('select');
+    statusSelect.className = 'prospect-status-select';
+    statusSelect.setAttribute('aria-label', `Status de ${prospect.business_name}`);
+    Object.entries(PROSPECT_STATUS_LABELS).forEach(([valor, rotulo]) => {
+      const option = document.createElement('option');
+      option.value = valor;
+      option.textContent = rotulo;
+      option.selected = valor === prospect.status;
+      statusSelect.appendChild(option);
+    });
+    const prioridadeSelect = document.createElement('select');
+    prioridadeSelect.className = 'prospect-priority-select';
+    prioridadeSelect.setAttribute('aria-label', `Prioridade de ${prospect.business_name}`);
+    [['low', 'Baixa'], ['medium', 'Média'], ['high', 'Alta']].forEach(([valor, rotulo]) => {
+      const option = document.createElement('option');
+      option.value = valor;
+      option.textContent = rotulo;
+      option.selected = valor === prospect.priority;
+      prioridadeSelect.appendChild(option);
+    });
+    const salvarControle = async () => {
+      await atualizarProspect(prospect.id, { status: statusSelect.value, priority: prioridadeSelect.value });
+    };
+    statusSelect.addEventListener('change', salvarControle);
+    prioridadeSelect.addEventListener('change', salvarControle);
+    controles.append(statusSelect, prioridadeSelect);
+    item.append(nome, local, status, controles);
+    if (prospect.source_url) item.appendChild(criarLinkProspect('Abrir no Maps ↗', prospect.source_url));
     lista.appendChild(item);
   });
+}
+
+async function atualizarProspect(id, alteracoes) {
+  if (!window.appSupabase || !podeGerenciarPedidos()) return;
+  const userId = await obterUserId();
+  if (!userId) {
+    toast('Sua sessão expirou. Entre novamente no painel.', 'error');
+    return;
+  }
+  const { data, error } = await window.appSupabase
+    .from('prospects')
+    .update({ ...alteracoes, updated_by: userId })
+    .eq('id', id)
+    .select('id, google_place_id, business_name, address_line, neighborhood, city, status, priority, source_url, phone, cnpj, updated_at')
+    .single();
+  if (error) {
+    console.error('Falha ao atualizar prospect:', error);
+    toast(`Não foi possível atualizar o lead: ${mensagemErroSupabase(error)}`, 'error');
+    return;
+  }
+  PROSPECTS_SALVOS = PROSPECTS_SALVOS.map(item => item.id === id ? data : item);
+  renderProspecoesSalvas();
+  toast('Lead atualizado.', 'success');
 }
 
 async function carregarProspecoesSalvas() {
   if (!window.appSupabase || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) return;
   const { data, error } = await window.appSupabase
     .from('prospects')
-    .select('id, google_place_id, business_name, address_line, neighborhood, city, status, priority, source_url, updated_at')
+    .select('id, google_place_id, business_name, address_line, neighborhood, city, status, priority, source_url, phone, cnpj, updated_at')
     .order('updated_at', { ascending: false });
   if (error) {
     console.error('Falha ao carregar prospecção:', error);
@@ -1952,7 +2138,21 @@ document.addEventListener('DOMContentLoaded', () => {
   iniciarGraficoPedidos([]);
   iniciarNavegacaoDashboard();
   atualizarAcessoProspecao();
-  ['historicoBusca', 'historicoStatus', 'historicoDe', 'historicoAte'].forEach(id => {
+  const periodo = document.getElementById('dashboardPeriodo');
+  periodo?.addEventListener('change', () => {
+    DASHBOARD_PERIODO = periodo.value || 'mes';
+    renderMetricas(dashboardOrders);
+  });
+  document.getElementById('btnAtualizarDashboard')?.addEventListener('click', async evento => {
+    const botao = evento.currentTarget;
+    if (botao.disabled) return;
+    botao.disabled = true;
+    botao.textContent = 'Atualizando…';
+    await carregarDadosRemotos();
+    botao.disabled = false;
+    botao.textContent = 'Atualizar';
+  });
+  ['historicoBusca', 'historicoStatus', 'historicoDe', 'historicoAte', 'historicoOrdenar'].forEach(id => {
     const campo = document.getElementById(id);
     if (!campo) return;
     campo.addEventListener('input', () => {
@@ -1960,7 +2160,8 @@ document.addEventListener('DOMContentLoaded', () => {
         query: document.getElementById('historicoBusca')?.value || '',
         status: document.getElementById('historicoStatus')?.value || 'all',
         de: document.getElementById('historicoDe')?.value || '',
-        ate: document.getElementById('historicoAte')?.value || ''
+        ate: document.getElementById('historicoAte')?.value || '',
+        ordenar: document.getElementById('historicoOrdenar')?.value || 'recentes'
       };
       renderHistoricoPedidos();
     });
@@ -1970,7 +2171,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ['historicoBusca', 'historicoDe', 'historicoAte'].forEach(id => { const campo = document.getElementById(id); if (campo) campo.value = ''; });
     const status = document.getElementById('historicoStatus');
     if (status) status.value = 'all';
-    HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '' };
+    const ordenar = document.getElementById('historicoOrdenar');
+    if (ordenar) ordenar.value = 'recentes';
+    HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '', ordenar: 'recentes' };
     renderHistoricoPedidos();
   });
   const dialogHistorico = document.getElementById('historyDialog');
