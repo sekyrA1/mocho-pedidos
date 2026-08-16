@@ -1582,6 +1582,40 @@ function abrirFormularioFinanceiro() {
   document.getElementById('financeDescription')?.focus();
 }
 
+function preencherTesteFinanceiro() {
+  abrirFormularioFinanceiro();
+  const exemplos = [
+    { type: 'entry', category: 'sinal', amount: '450.00', counterparty: 'Clínica Horizonte', description: 'Recebimento de sinal do pedido', payment: 'Pix', notes: 'Lançamento de teste — revise antes de salvar.' },
+    { type: 'entry', category: 'parcela', amount: '744.11', counterparty: 'Studio Essencial', description: 'Recebimento de parcela do pedido', payment: 'Transferência', notes: 'Lançamento de teste — revise antes de salvar.' },
+    { type: 'exit', category: 'material', amount: '286.50', counterparty: 'Fornecedor de espumas', description: 'Compra de material para produção', payment: 'Pix', materialName: 'Espuma 5 cm', materialQuantity: '10', materialUnit: 'un', materialUnitCost: '28.65', notes: 'Lançamento de teste — revise antes de salvar.' },
+    { type: 'exit', category: 'frete', amount: '95.00', counterparty: 'Transportadora', description: 'Frete de materiais', payment: 'Boleto', notes: 'Lançamento de teste — revise antes de salvar.' }
+  ];
+  const exemplo = exemplos[Math.floor(Math.random() * exemplos.length)];
+  const tipo = document.getElementById('financeType');
+  const status = document.getElementById('financeStatus');
+  const categoria = document.getElementById('financeCategory');
+  if (tipo) tipo.value = exemplo.type;
+  preencherCategoriasFinanceiras(exemplo.type);
+  if (categoria) categoria.value = exemplo.category;
+  if (status) status.value = 'paid';
+  atualizarCamposMateriaisFinanceiros();
+  const setValue = (id, value) => { const campo = document.getElementById(id); if (campo) campo.value = value ?? ''; };
+  setValue('financeDate', financeHoje());
+  setValue('financeDueDate', '');
+  setValue('financeAmount', exemplo.amount);
+  setValue('financePaymentMethod', exemplo.payment);
+  setValue('financeCounterparty', exemplo.counterparty);
+  setValue('financeMaterialName', exemplo.materialName);
+  setValue('financeMaterialQuantity', exemplo.materialQuantity);
+  setValue('financeMaterialUnit', exemplo.materialUnit || 'un');
+  setValue('financeMaterialUnitCost', exemplo.materialUnitCost);
+  setValue('financeDescription', exemplo.description);
+  setValue('financeNotes', exemplo.notes);
+  const pedido = document.getElementById('financeOrder');
+  if (pedido) pedido.value = dashboardOrders[0]?.dbId || '';
+  toast('Exemplo financeiro preenchido. Revise e salve se quiser.', 'success');
+}
+
 function fecharFormularioFinanceiro(reset = false) {
   const card = document.getElementById('financeFormCard');
   if (card) card.hidden = true;
@@ -2512,6 +2546,7 @@ function iniciarInterfaceFinanceira() {
   atualizarCamposMateriaisFinanceiros();
   preencherPedidosFinanceiros();
   document.getElementById('financeNovoLancamento')?.addEventListener('click', abrirFormularioFinanceiro);
+  document.getElementById('financePreencherTeste')?.addEventListener('click', preencherTesteFinanceiro);
   document.getElementById('financeFormClose')?.addEventListener('click', () => fecharFormularioFinanceiro());
   document.getElementById('financeFormCancel')?.addEventListener('click', () => fecharFormularioFinanceiro(true));
   document.getElementById('financeType')?.addEventListener('change', evento => {
