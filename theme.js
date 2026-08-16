@@ -22,7 +22,8 @@
     document.documentElement.dataset.theme = theme;
     if (dashboard) {
       body.classList.toggle('dashboard-dark', dark);
-      body.classList.remove('dark-theme', 'light-theme');
+      body.classList.toggle('light-theme', !dark);
+      body.classList.remove('dark-theme');
     } else {
       body.classList.toggle('dark-theme', dark);
       body.classList.toggle('light-theme', !dark);

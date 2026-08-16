@@ -47,6 +47,41 @@
   body.dashboard-dark .history-dialog { background: #151837; }
   body.dashboard-dark .empty-state { border-color: rgba(161,171,230,.2); background: rgba(6,8,23,.24); }
   body.dashboard-dark { scrollbar-color: #756be0 #0b0e22; }
+
+  /* ---------- DASHBOARD LIGHT THEME ---------- */
+  body.light-theme .dashboard-sidebar { border-color: rgba(16,20,60,.1); background: linear-gradient(160deg, rgba(255,255,255,.92), rgba(238,241,249,.88)); box-shadow: 0 16px 34px rgba(44,55,108,.1); }
+  body.light-theme .dashboard-menu button { color: var(--ink-soft); }
+  body.light-theme .dashboard-menu button span { color: var(--ink-soft); background: rgba(16,20,60,.06); }
+  body.light-theme .dashboard-menu button:hover { color: var(--ink); background: rgba(16,20,60,.06); }
+  body.light-theme .dashboard-menu button.active { color: #fff; background: linear-gradient(90deg, rgba(197,28,42,.9), rgba(197,28,42,.72)); }
+  body.light-theme .dashboard-menu button.active span { color: #fff; background: var(--accent); }
+  body.light-theme .dashboard-sidebar-note { color: var(--ink-soft); background: rgba(197,28,42,.08); }
+  body.light-theme .dashboard-sidebar-note strong { color: var(--ink); }
+  body.light-theme .dashboard-logout { color: var(--ink-soft); border-color: rgba(16,20,60,.14); }
+  body.light-theme .dashboard-logout:hover { color: var(--ink); background: rgba(197,28,42,.08); border-color: rgba(197,28,42,.35); }
+  body.light-theme .dashboard-periodo select { border-color: rgba(16,20,60,.14); background: rgba(255,255,255,.82); }
+  body.light-theme .dashboard-quick-actions { border-color: rgba(16,20,60,.1); background: linear-gradient(110deg, rgba(255,255,255,.78), rgba(234,237,247,.72)); box-shadow: 0 10px 24px rgba(44,55,108,.06); }
+  body.light-theme .pipeline-step { border-color: rgba(16,20,60,.11); background: rgba(255,255,255,.68); box-shadow: 0 5px 14px rgba(44,55,108,.05); }
+  body.light-theme .pipeline-step:hover { border-color: rgba(101,88,218,.42); background: rgba(236,235,255,.86); }
+  body.light-theme .pipeline-step-track { background: rgba(16,20,60,.1); }
+  body.light-theme .dashboard-recent-row { border-color: rgba(16,20,60,.1); background: rgba(255,255,255,.58); }
+  body.light-theme .dashboard-recent-row:hover { background: rgba(255,255,255,.82); }
+  body.light-theme .historico-item, body.light-theme .prospect-card, body.light-theme .prospect-salvo { border-color: rgba(16,20,60,.1); background: rgba(255,255,255,.6); }
+  body.light-theme .history-status-select, body.light-theme .prospect-salvo-controles select { border-color: rgba(16,20,60,.14); color: var(--ink); background: rgba(255,255,255,.82); }
+  body.light-theme .divider, body.light-theme .section-label::after { background: rgba(16,20,60,.12); }
+  body.light-theme .config-steps { border-color: rgba(16,20,60,.12); }
+  body.light-theme .config-panel { border-color: rgba(16,20,60,.12); background: rgba(255,255,255,.5); }
+  body.light-theme .panel-heading > span { background: rgba(16,20,60,.06); }
+  body.light-theme .history-dialog, body.light-theme .pdf-preview-dialog { border-color: rgba(16,20,60,.14); color: var(--ink); background: #f8f9fd; box-shadow: 0 30px 80px rgba(26,31,67,.25); }
+  body.light-theme .history-dialog-header, body.light-theme .pdf-preview-header { background: linear-gradient(115deg, rgba(255,237,238,.96), rgba(235,237,255,.96)); border-color: rgba(16,20,60,.1); }
+  body.light-theme .history-product { background: linear-gradient(135deg, rgba(235,235,255,.9), rgba(247,248,253,.96)); border-color: rgba(16,20,60,.1); }
+  body.light-theme .history-product small, body.light-theme .history-section-title { color: var(--muted); }
+  body.light-theme .history-product strong, body.light-theme .history-detail strong { color: var(--ink); }
+  body.light-theme .history-product span { color: var(--ink-soft); background: rgba(16,20,60,.06); }
+  body.light-theme .history-detail { background: rgba(255,255,255,.74); border-color: rgba(16,20,60,.1); }
+  body.light-theme .history-dialog-actions, body.light-theme .pdf-preview-actions { border-color: rgba(16,20,60,.1); background: rgba(255,255,255,.62); }
+  body.light-theme .pdf-preview-body { background: #e9ecf5; }
+  body.light-theme .empty-state { border-color: rgba(16,20,60,.18); background: rgba(255,255,255,.5); }
   body::before, body::after {
     content: '';
     position: fixed;
