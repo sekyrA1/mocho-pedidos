@@ -1506,9 +1506,10 @@ function compararProspectComClientes(resultado) {
   const nomeResultado = normalizarPesquisa(resultado.name);
   const telefoneResultado = normalizarDigitos(resultado.phone);
   const enderecoResultado = normalizarPesquisa(resultado.address);
+  const enderecoToken = enderecoResultado.slice(0, 18);
   const salvo = PROSPECTS_SALVOS.find(item =>
     (resultado.placeId && item.google_place_id === resultado.placeId)
-    || (normalizarPesquisa(item.business_name) === nomeResultado && normalizarPesquisa(item.address_line).includes(normalizarPesquisa(resultado.address).slice(0, 18)))
+    || (normalizarPesquisa(item.business_name) === nomeResultado && enderecoToken.length >= 6 && normalizarPesquisa(item.address_line).includes(enderecoToken))
   );
   const cliente = CLIENTES_CADASTRADOS.find(item => {
     const telefoneCliente = normalizarDigitos(item.phone);
