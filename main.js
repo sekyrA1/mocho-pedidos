@@ -12,6 +12,11 @@ let itemCounter = 0;
 let savedOrderId = null;
 let dashboardOrders = [];
 let pedidosChart = null;
+let financeTransactions = [];
+let financeFluxoChart = null;
+let financeCategoriasChart = null;
+let FINANCE_PERIODO = 'mes';
+let FINANCE_FILTROS = { type: 'all', category: 'all', status: 'all', query: '' };
 let CLIENTES_CADASTRADOS = [];
 let PROSPECTS_SALVOS = [];
 let PROSPECCAO_RESULTADOS = [];
@@ -31,6 +36,33 @@ const STATUS_LABELS = {
   quality_check: 'Em conferência',
   ready: 'Pronto',
   delivered: 'Concluído',
+  canceled: 'Cancelado'
+};
+
+const FINANCE_CATEGORY_LABELS = {
+  venda: 'Venda',
+  sinal: 'Sinal de cliente',
+  parcela: 'Parcela',
+  servico: 'Serviço',
+  material: 'Material',
+  frete: 'Frete',
+  mao_de_obra: 'Mão de obra',
+  marketing: 'Marketing',
+  impostos: 'Impostos',
+  taxas: 'Taxas',
+  equipamento: 'Equipamento',
+  aluguel: 'Aluguel',
+  outros: 'Outros'
+};
+
+const FINANCE_CATEGORIES = {
+  entry: ['venda', 'sinal', 'parcela', 'servico', 'outros'],
+  exit: ['material', 'frete', 'mao_de_obra', 'marketing', 'impostos', 'taxas', 'equipamento', 'aluguel', 'outros']
+};
+
+const FINANCE_STATUS_LABELS = {
+  paid: 'Pago / recebido',
+  pending: 'Pendente',
   canceled: 'Cancelado'
 };
 
@@ -1271,6 +1303,8 @@ async function carregarDadosRemotos() {
     renderMetricas(dashboardOrders);
     renderHistoricoPedidos();
     atualizarAcessoProspecao();
+    atualizarAcessoFinancas();
+    await carregarDadosFinanceiros();
     iniciarGraficoPedidos(dashboardOrders);
     if (sync) sync.textContent = `${dashboardOrders.length} ${dashboardOrders.length === 1 ? 'pedido sincronizado' : 'pedidos sincronizados'}`;
     if (historicoSync) historicoSync.textContent = `${dashboardOrders.length} ${dashboardOrders.length === 1 ? 'registro' : 'registros'}`;
@@ -1284,6 +1318,9 @@ async function carregarDadosRemotos() {
     renderMetricas([]);
     renderHistoricoPedidos();
     renderProspecoesSalvas();
+    atualizarAcessoFinancas();
+    financeTransactions = [];
+    renderFinanceiro();
     iniciarGraficoPedidos([]);
     if (sync) sync.textContent = 'Não foi possível carregar os dados';
     if (historicoSync) historicoSync.textContent = 'Falha ao carregar';
@@ -1455,10 +1492,324 @@ function iniciarGraficoPedidos(pedidos = dashboardOrders) {
   });
 }
 
+function financeHoje() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+}
+
+function financeDataObjeto(valor) {
+  if (!valor) return null;
+  const data = new Date(`${String(valor).slice(0, 10)}T00:00:00`);
+  return Number.isNaN(data.getTime()) ? null : data;
+}
+
+function dentroDoPeriodoFinanceiro(lancamento) {
+  if (FINANCE_PERIODO === 'todos') return true;
+  const data = financeDataObjeto(lancamento.transaction_date);
+  if (!data) return false;
+  const hoje = new Date();
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  if (FINANCE_PERIODO === 'trimestre') inicio.setMonth(inicio.getMonth() - 2);
+  if (FINANCE_PERIODO === 'ano') inicio.setMonth(0);
+  return data >= inicio && data <= hoje;
+}
+
+function textoPeriodoFinanceiro() {
+  return ({ mes: 'neste mês', trimestre: 'nos últimos 3 meses', ano: 'neste ano', todos: 'em todos os lançamentos' })[FINANCE_PERIODO] || 'no período';
+}
+
+function formatarDataFinanceira(valor) {
+  return valor ? dataBrasileira(valor) : '—';
+}
+
+function financeCategoriasDoTipo(tipo) {
+  return FINANCE_CATEGORIES[tipo] || FINANCE_CATEGORIES.entry;
+}
+
+function preencherCategoriasFinanceiras(tipo = document.getElementById('financeType')?.value || 'entry') {
+  const seletor = document.getElementById('financeCategory');
+  if (seletor) {
+    const atual = seletor.value;
+    const categorias = financeCategoriasDoTipo(tipo);
+    seletor.innerHTML = categorias.map(categoria => `<option value="${escapeHtml(categoria)}">${escapeHtml(FINANCE_CATEGORY_LABELS[categoria] || categoria)}</option>`).join('');
+    seletor.value = categorias.includes(atual) ? atual : categorias[0];
+  }
+  const filtro = document.getElementById('financeFiltroCategoria');
+  if (filtro && !filtro.options.length) {
+    filtro.innerHTML = '<option value="all">Todas</option>';
+  }
+  if (filtro) {
+    const atual = filtro.value || 'all';
+    const todas = [...new Set(Object.values(FINANCE_CATEGORIES).flat())];
+    filtro.innerHTML = '<option value="all">Todas</option>' + todas.map(categoria => `<option value="${escapeHtml(categoria)}">${escapeHtml(FINANCE_CATEGORY_LABELS[categoria] || categoria)}</option>`).join('');
+    filtro.value = todas.includes(atual) ? atual : 'all';
+  }
+}
+
+function atualizarCamposMateriaisFinanceiros() {
+  const tipo = document.getElementById('financeType')?.value;
+  const categoria = document.getElementById('financeCategory')?.value;
+  const material = tipo === 'exit' && categoria === 'material';
+  document.querySelectorAll('.finance-material-field').forEach(campo => { campo.hidden = !material; });
+  const nome = document.getElementById('financeMaterialName');
+  if (nome) nome.required = material;
+}
+
+function preencherPedidosFinanceiros() {
+  const seletor = document.getElementById('financeOrder');
+  if (!seletor) return;
+  const atual = seletor.value;
+  seletor.innerHTML = '<option value="">Nenhum pedido</option>';
+  [...dashboardOrders]
+    .sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')))
+    .forEach(pedido => {
+      const option = document.createElement('option');
+      option.value = pedido.dbId;
+      option.textContent = `${pedido.id} · ${pedido.cliente}`;
+      seletor.appendChild(option);
+    });
+  if ([...seletor.options].some(option => option.value === atual)) seletor.value = atual;
+}
+
+function abrirFormularioFinanceiro() {
+  const card = document.getElementById('financeFormCard');
+  if (!card) return;
+  card.hidden = false;
+  const data = document.getElementById('financeDate');
+  if (data && !data.value) data.value = financeHoje();
+  preencherPedidosFinanceiros();
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('financeDescription')?.focus();
+}
+
+function fecharFormularioFinanceiro(reset = false) {
+  const card = document.getElementById('financeFormCard');
+  if (card) card.hidden = true;
+  if (reset) {
+    document.getElementById('financeTransactionForm')?.reset();
+    const data = document.getElementById('financeDate');
+    if (data) data.value = financeHoje();
+    preencherCategoriasFinanceiras('entry');
+    atualizarCamposMateriaisFinanceiros();
+  }
+}
+
+function renderMetricasFinanceiras() {
+  const periodo = financeTransactions.filter(dentroDoPeriodoFinanceiro);
+  const ativos = periodo.filter(lancamento => lancamento.status !== 'canceled');
+  const entradas = ativos.filter(lancamento => lancamento.type === 'entry' && lancamento.status === 'paid').reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0);
+  const saidas = ativos.filter(lancamento => lancamento.type === 'exit' && lancamento.status === 'paid').reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0);
+  const materiais = ativos.filter(lancamento => lancamento.type === 'exit' && lancamento.status === 'paid' && lancamento.category === 'material').reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0);
+  const pendentes = periodo.filter(lancamento => lancamento.status === 'pending').reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0);
+  const saldo = entradas - saidas;
+  const setText = (id, valor) => { const elemento = document.getElementById(id); if (elemento) elemento.textContent = valor; };
+  setText('financeMetricEntradas', fmt(entradas));
+  setText('financeMetricSaidas', fmt(saidas));
+  setText('financeMetricSaldo', fmt(saldo));
+  setText('financeMetricMateriais', fmt(materiais));
+  setText('financeMetricPendentes', fmt(pendentes));
+  setText('financeMetricEntradasMeta', `Recebidas ${textoPeriodoFinanceiro()}`);
+  setText('financeMetricSaidasMeta', `Pagas ${textoPeriodoFinanceiro()}`);
+  setText('financeMetricSaldoMeta', `Entradas menos saídas ${textoPeriodoFinanceiro()}`);
+  setText('financeMetricMateriaisMeta', `Materiais pagos ${textoPeriodoFinanceiro()}`);
+  setText('financeMetricPendentesMeta', `Entradas e saídas ${textoPeriodoFinanceiro()}`);
+  const saldoElemento = document.getElementById('financeMetricSaldo');
+  if (saldoElemento) saldoElemento.classList.toggle('finance-negative', saldo < 0);
+}
+
+function financeRelacionamento(lancamento) {
+  const pedido = dashboardOrders.find(item => item.dbId === lancamento.order_id);
+  if (pedido) return `${pedido.id} · ${pedido.cliente}`;
+  return lancamento.counterparty || '—';
+}
+
+function filtrarLancamentosFinanceiros() {
+  const query = normalizarPesquisa(FINANCE_FILTROS.query);
+  return financeTransactions
+    .filter(dentroDoPeriodoFinanceiro)
+    .filter(lancamento => FINANCE_FILTROS.type === 'all' || lancamento.type === FINANCE_FILTROS.type)
+    .filter(lancamento => FINANCE_FILTROS.category === 'all' || lancamento.category === FINANCE_FILTROS.category)
+    .filter(lancamento => FINANCE_FILTROS.status === 'all' || lancamento.status === FINANCE_FILTROS.status)
+    .filter(lancamento => !query || normalizarPesquisa([lancamento.description, lancamento.counterparty, lancamento.material_name, lancamento.notes].filter(Boolean).join(' ')).includes(query))
+    .sort((a, b) => String(b.transaction_date || '').localeCompare(String(a.transaction_date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+}
+
+function renderLancamentosFinanceiros() {
+  const corpo = document.getElementById('financeTransactionsBody');
+  const vazio = document.getElementById('financeTransactionsEmpty');
+  const resumo = document.getElementById('financeTransactionsResumo');
+  if (!corpo || !vazio) return;
+  const filtrados = filtrarLancamentosFinanceiros();
+  corpo.innerHTML = '';
+  vazio.hidden = filtrados.length > 0;
+  if (resumo) {
+    const total = filtrados.reduce((soma, lancamento) => soma + Number(lancamento.amount || 0), 0);
+    resumo.textContent = filtrados.length
+      ? `${filtrados.length} ${filtrados.length === 1 ? 'lançamento' : 'lançamentos'} · ${fmt(total)} no recorte.`
+      : (financeTransactions.length ? 'Nenhum lançamento corresponde aos filtros.' : 'Nenhum lançamento registrado ainda.');
+  }
+  filtrados.forEach(lancamento => {
+    const linha = document.createElement('tr');
+    const tipoEntrada = lancamento.type === 'entry';
+    const tipo = tipoEntrada ? 'Entrada' : 'Saída';
+    const status = FINANCE_STATUS_LABELS[lancamento.status] || lancamento.status;
+    const categoria = FINANCE_CATEGORY_LABELS[lancamento.category] || lancamento.category;
+    const relacionamento = financeRelacionamento(lancamento);
+    linha.innerHTML = `
+      <td>${escapeHtml(formatarDataFinanceira(lancamento.transaction_date))}</td>
+      <td><span class="finance-kind ${tipoEntrada ? 'finance-kind-entry' : 'finance-kind-exit'}">${tipo}</span></td>
+      <td><strong>${escapeHtml(lancamento.description)}</strong>${lancamento.material_name ? `<small>${escapeHtml(lancamento.material_name)}</small>` : ''}</td>
+      <td>${escapeHtml(categoria)}</td>
+      <td>${escapeHtml(relacionamento)}</td>
+      <td><span class="finance-status finance-status-${escapeHtml(lancamento.status)}">${escapeHtml(status)}</span></td>
+      <td class="finance-table-value ${tipoEntrada ? 'finance-value-entry' : 'finance-value-exit'}">${tipoEntrada ? '+' : '-'} ${escapeHtml(fmt(lancamento.amount))}</td>
+      <td></td>`;
+    const acoes = linha.lastElementChild;
+    acoes.appendChild(criarBotaoHistorico('Excluir', 'btn-danger finance-delete-btn', `Excluir lançamento ${lancamento.description}`, () => excluirLancamentoFinanceiro(lancamento.id)));
+    corpo.appendChild(linha);
+  });
+}
+
+function iniciarGraficosFinanceiros() {
+  const fluxoCanvas = document.getElementById('financeFluxoChart');
+  const categoriasCanvas = document.getElementById('financeCategoriasChart');
+  if (!window.Chart || !fluxoCanvas || !categoriasCanvas) return;
+  if (financeFluxoChart) financeFluxoChart.destroy();
+  if (financeCategoriasChart) financeCategoriasChart.destroy();
+  const hoje = new Date();
+  const meses = Array.from({ length: 6 }, (_, indice) => new Date(hoje.getFullYear(), hoje.getMonth() - 5 + indice, 1));
+  const chaves = meses.map(mes => `${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, '0')}`);
+  const labels = meses.map(mes => mes.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
+  const dados = financeTransactions.filter(lancamento => dentroDoPeriodoFinanceiro(lancamento) && lancamento.status !== 'canceled');
+  const entradas = chaves.map(chave => dados.filter(lancamento => lancamento.type === 'entry' && lancamento.status === 'paid' && lancamento.transaction_date?.startsWith(chave)).reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0));
+  const saidas = chaves.map(chave => dados.filter(lancamento => lancamento.type === 'exit' && lancamento.status === 'paid' && lancamento.transaction_date?.startsWith(chave)).reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0));
+  const opcoesComuns = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c6cae6', usePointStyle: true, boxWidth: 9, font: { family: 'Inter', size: 11 } } }, tooltip: { backgroundColor: '#151837', titleColor: '#fff', bodyColor: '#dfe2fb', borderColor: 'rgba(161,171,230,.2)', borderWidth: 1 } }, scales: { x: { grid: { display: false }, ticks: { color: '#9097bc', font: { family: 'Inter' } }, border: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(161,171,230,.12)' }, ticks: { color: '#9097bc', callback: valor => `R$ ${Number(valor / 1000).toFixed(0)}k` }, border: { display: false } } } };
+  financeFluxoChart = new Chart(fluxoCanvas, { type: 'bar', data: { labels, datasets: [{ label: 'Entradas', data: entradas, backgroundColor: 'rgba(61, 190, 144, .78)', borderRadius: 7, borderSkipped: false }, { label: 'Saídas', data: saidas, backgroundColor: 'rgba(197, 28, 42, .78)', borderRadius: 7, borderSkipped: false }] }, options: opcoesComuns });
+
+  const porCategoria = {};
+  dados.filter(lancamento => lancamento.type === 'exit' && lancamento.status === 'paid').forEach(lancamento => { porCategoria[lancamento.category] = (porCategoria[lancamento.category] || 0) + Number(lancamento.amount || 0); });
+  const categorias = Object.keys(porCategoria).sort((a, b) => porCategoria[b] - porCategoria[a]);
+  const cores = ['#c51c2a', '#8d82ff', '#e5a33d', '#3dbe90', '#6c8cff', '#d66d9b', '#8e9ab9', '#e56b4f'];
+  financeCategoriasChart = new Chart(categoriasCanvas, { type: 'doughnut', data: { labels: categorias.length ? categorias.map(categoria => FINANCE_CATEGORY_LABELS[categoria] || categoria) : ['Sem saídas pagas'], datasets: [{ data: categorias.length ? categorias.map(categoria => porCategoria[categoria]) : [1], backgroundColor: categorias.length ? categorias.map((_, indice) => cores[indice % cores.length]) : ['rgba(161,171,230,.2)'], borderColor: '#11142d', borderWidth: 3 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { color: '#c6cae6', usePointStyle: true, padding: 14, boxWidth: 9, font: { family: 'Inter', size: 11 } } }, tooltip: opcoesComuns.plugins.tooltip } } });
+}
+
+function renderFinanceiro() {
+  renderMetricasFinanceiras();
+  renderLancamentosFinanceiros();
+  iniciarGraficosFinanceiros();
+}
+
+async function carregarDadosFinanceiros() {
+  const sync = document.getElementById('financeSync');
+  if (!window.appSupabase || window.currentAuth?.profile?.role !== 'admin') return false;
+  try {
+    const { data, error } = await window.appSupabase
+      .from('finance_transactions')
+      .select('id, type, status, transaction_date, due_date, category, description, amount, payment_method, counterparty, order_id, material_name, material_quantity, material_unit, material_unit_cost, notes, created_by, updated_by, created_at, updated_at')
+      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    financeTransactions = data || [];
+    preencherPedidosFinanceiros();
+    renderFinanceiro();
+    if (sync) sync.textContent = `${financeTransactions.length} ${financeTransactions.length === 1 ? 'lançamento sincronizado' : 'lançamentos sincronizados'}`;
+    return true;
+  } catch (error) {
+    console.error('Falha ao carregar lançamentos financeiros:', error);
+    financeTransactions = [];
+    renderFinanceiro();
+    if (sync) sync.textContent = 'Não foi possível carregar os lançamentos';
+    return false;
+  }
+}
+
+async function salvarLancamentoFinanceiro(evento) {
+  evento.preventDefault();
+  if (window.currentAuth?.profile?.role !== 'admin') {
+    toast('Somente administradores podem lançar movimentações financeiras.', 'error');
+    return;
+  }
+  const type = document.getElementById('financeType')?.value || 'entry';
+  const status = document.getElementById('financeStatus')?.value || 'paid';
+  const transactionDate = document.getElementById('financeDate')?.value;
+  const dueDate = document.getElementById('financeDueDate')?.value || null;
+  const category = document.getElementById('financeCategory')?.value;
+  const amount = Number(document.getElementById('financeAmount')?.value || 0);
+  const description = document.getElementById('financeDescription')?.value.trim();
+  if (!transactionDate || !category || !description || !Number.isFinite(amount) || amount <= 0) {
+    toast('Preencha data, categoria, descrição e um valor maior que zero.', 'error');
+    return;
+  }
+  if (dueDate && dueDate < transactionDate) {
+    toast('O vencimento não pode ser anterior à data do lançamento.', 'error');
+    return;
+  }
+  const material = type === 'exit' && category === 'material';
+  const userId = await obterUserId();
+  if (!userId) {
+    toast('Sua sessão expirou. Entre novamente no painel.', 'error');
+    return;
+  }
+  const botao = evento.currentTarget.querySelector('button[type="submit"]');
+  if (botao) { botao.disabled = true; botao.textContent = 'Salvando…'; }
+  const payload = {
+    type,
+    status,
+    transaction_date: transactionDate,
+    due_date: dueDate,
+    category,
+    description,
+    amount,
+    payment_method: document.getElementById('financePaymentMethod')?.value || null,
+    counterparty: document.getElementById('financeCounterparty')?.value.trim() || null,
+    order_id: document.getElementById('financeOrder')?.value || null,
+    material_name: material ? document.getElementById('financeMaterialName')?.value.trim() || null : null,
+    material_quantity: material ? Number(document.getElementById('financeMaterialQuantity')?.value || 0) || null : null,
+    material_unit: material ? document.getElementById('financeMaterialUnit')?.value || null : null,
+    material_unit_cost: material ? Number(document.getElementById('financeMaterialUnitCost')?.value || 0) || null : null,
+    notes: document.getElementById('financeNotes')?.value.trim() || null,
+    created_by: userId,
+    updated_by: userId
+  };
+  const { error } = await window.appSupabase.from('finance_transactions').insert(payload);
+  if (botao) { botao.disabled = false; botao.textContent = 'Salvar lançamento'; }
+  if (error) {
+    console.error('Falha ao salvar lançamento financeiro:', error);
+    toast(`Não foi possível salvar: ${mensagemErroSupabase(error)}`, 'error');
+    return;
+  }
+  fecharFormularioFinanceiro(true);
+  await carregarDadosFinanceiros();
+  toast('Lançamento financeiro salvo.', 'success');
+}
+
+async function excluirLancamentoFinanceiro(id) {
+  const lancamento = financeTransactions.find(item => item.id === id);
+  if (!lancamento || window.currentAuth?.profile?.role !== 'admin') return;
+  if (!window.confirm(`Excluir o lançamento “${lancamento.description}”?`)) return;
+  const { error } = await window.appSupabase.from('finance_transactions').delete().eq('id', id);
+  if (error) {
+    console.error('Falha ao excluir lançamento financeiro:', error);
+    toast(`Não foi possível excluir: ${mensagemErroSupabase(error)}`, 'error');
+    return;
+  }
+  await carregarDadosFinanceiros();
+  toast('Lançamento excluído.', 'success');
+}
+
+function atualizarAcessoFinancas() {
+  const permitido = window.currentAuth?.profile?.role === 'admin';
+  const botao = document.querySelector('[data-dashboard-nav="financas"]');
+  const pagina = document.querySelector('[data-dashboard-page="financas"]');
+  if (botao) botao.hidden = !permitido;
+  if (pagina && !permitido) pagina.hidden = true;
+}
+
 function iniciarNavegacaoDashboard() {
   const botoes = document.querySelectorAll('[data-dashboard-nav]');
   const paginas = document.querySelectorAll('[data-dashboard-page]');
   const navegar = destino => {
+    if (destino === 'financas' && window.currentAuth?.profile?.role !== 'admin') return;
     paginas.forEach(pagina => pagina.hidden = pagina.dataset.dashboardPage !== destino);
     botoes.forEach(botao => botao.classList.toggle('active', botao.dataset.dashboardNav === destino));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2152,6 +2503,63 @@ function toast(msg, variant = 'info') {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
+function iniciarInterfaceFinanceira() {
+  const form = document.getElementById('financeTransactionForm');
+  if (!form) return;
+  const data = document.getElementById('financeDate');
+  if (data) data.value = financeHoje();
+  preencherCategoriasFinanceiras('entry');
+  atualizarCamposMateriaisFinanceiros();
+  preencherPedidosFinanceiros();
+  document.getElementById('financeNovoLancamento')?.addEventListener('click', abrirFormularioFinanceiro);
+  document.getElementById('financeFormClose')?.addEventListener('click', () => fecharFormularioFinanceiro());
+  document.getElementById('financeFormCancel')?.addEventListener('click', () => fecharFormularioFinanceiro(true));
+  document.getElementById('financeType')?.addEventListener('change', evento => {
+    preencherCategoriasFinanceiras(evento.currentTarget.value);
+    atualizarCamposMateriaisFinanceiros();
+  });
+  document.getElementById('financeCategory')?.addEventListener('change', atualizarCamposMateriaisFinanceiros);
+  form.addEventListener('submit', salvarLancamentoFinanceiro);
+  ['financeFiltroTipo', 'financeFiltroCategoria', 'financeFiltroStatus', 'financeFiltroBusca'].forEach(id => {
+    const campo = document.getElementById(id);
+    if (!campo) return;
+    const atualizar = () => {
+      FINANCE_FILTROS = {
+        type: document.getElementById('financeFiltroTipo')?.value || 'all',
+        category: document.getElementById('financeFiltroCategoria')?.value || 'all',
+        status: document.getElementById('financeFiltroStatus')?.value || 'all',
+        query: document.getElementById('financeFiltroBusca')?.value || ''
+      };
+      renderLancamentosFinanceiros();
+    };
+    campo.addEventListener('input', atualizar);
+    campo.addEventListener('change', atualizar);
+  });
+  document.getElementById('financeLimparFiltros')?.addEventListener('click', () => {
+    ['financeFiltroTipo', 'financeFiltroCategoria', 'financeFiltroStatus', 'financeFiltroBusca'].forEach(id => {
+      const campo = document.getElementById(id);
+      if (campo) campo.value = id === 'financeFiltroCategoria' ? 'all' : id === 'financeFiltroTipo' || id === 'financeFiltroStatus' ? 'all' : '';
+    });
+    FINANCE_FILTROS = { type: 'all', category: 'all', status: 'all', query: '' };
+    renderLancamentosFinanceiros();
+  });
+  document.getElementById('financePeriodo')?.addEventListener('change', evento => {
+    FINANCE_PERIODO = evento.currentTarget.value || 'mes';
+    renderFinanceiro();
+  });
+  document.getElementById('financeAtualizar')?.addEventListener('click', async evento => {
+    const botao = evento.currentTarget;
+    if (botao.disabled) return;
+    botao.disabled = true;
+    botao.textContent = 'Atualizando…';
+    await carregarDadosFinanceiros();
+    botao.disabled = false;
+    botao.textContent = 'Atualizar';
+  });
+  atualizarAcessoFinancas();
+  renderFinanceiro();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('data').value = new Date().toISOString().split('T')[0];
   CAMPOS_FABRICACAO.forEach(id => document.getElementById(id).addEventListener('change', () => {
@@ -2161,6 +2569,7 @@ document.addEventListener('DOMContentLoaded', () => {
   iniciarGraficoPedidos([]);
   iniciarNavegacaoDashboard();
   atualizarAcessoProspecao();
+  iniciarInterfaceFinanceira();
   const periodo = document.getElementById('dashboardPeriodo');
   periodo?.addEventListener('change', () => {
     DASHBOARD_PERIODO = periodo.value || 'mes';

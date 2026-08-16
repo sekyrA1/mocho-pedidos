@@ -393,7 +393,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
+      },
+      finance_transactions: {
+        Row: {
+          amount: number
+          category: string
+          counterparty: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          due_date: string | null
+          id: string
+          material_name: string | null
+          material_quantity: number | null
+          material_unit: string | null
+          material_unit_cost: number | null
+          notes: string | null
+          order_id: string | null
+          payment_method: string | null
+          status: string
+          transaction_date: string
+          type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          due_date?: string | null
+          id?: string
+          material_name?: string | null
+          material_quantity?: number | null
+          material_unit?: string | null
+          material_unit_cost?: number | null
+          notes?: string | null
+          order_id?: string | null
+          payment_method?: string | null
+          status?: string
+          transaction_date?: string
+          type: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          material_name?: string | null
+          material_quantity?: number | null
+          material_unit?: string | null
+          material_unit_cost?: number | null
+          notes?: string | null
+          order_id?: string | null
+          payment_method?: string | null
+          status?: string
+          transaction_date?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      },
       profiles: {
         Row: {
           active: boolean

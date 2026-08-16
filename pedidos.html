@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=light-mode-20260816">
+<link rel="stylesheet" href="style.css?v=finance-20260816">
 </head>
 <body class="dashboard-dark">
 
@@ -48,6 +48,7 @@
       <button type="button" data-dashboard-nav="novo"><span>＋</span>Novo pedido</button>
       <button type="button" data-dashboard-nav="historico"><span>◷</span>Pedidos anteriores</button>
       <button type="button" data-dashboard-nav="prospeccao"><span>⌖</span>Prospecção RJ</button>
+      <button type="button" data-dashboard-nav="financas" hidden><span>＄</span>Finanças</button>
     </nav>
     <div class="dashboard-sidebar-note"><strong>Operação online</strong>Pedidos e clientes sincronizados com o banco.</div>
     <button class="btn btn-ghost dashboard-logout" id="btnSair" type="button"><span aria-hidden="true">↪</span> Sair da sessão</button>
@@ -322,6 +323,72 @@
     </section>
   </section>
 
+  <section class="dashboard-page" data-dashboard-page="financas" hidden aria-label="Finanças">
+    <div class="dashboard-head">
+      <div>
+        <div class="dashboard-kicker">Controle manual do caixa</div>
+        <h1>Finanças</h1>
+        <p>Registre entradas, saídas e os materiais gastos pela operação.</p>
+      </div>
+      <div class="dashboard-head-actions">
+        <label class="dashboard-periodo"><span>Período</span><select id="financePeriodo" aria-label="Período dos lançamentos financeiros"><option value="mes" selected>Este mês</option><option value="trimestre">Últimos 3 meses</option><option value="ano">Este ano</option><option value="todos">Todos os lançamentos</option></select></label>
+        <button class="btn btn-primary" id="financeNovoLancamento" type="button">＋ Novo lançamento</button>
+        <button class="btn btn-ghost dashboard-refresh" id="financeAtualizar" type="button">Atualizar</button>
+        <span class="dashboard-sync" id="financeSync">Aguardando dados</span>
+      </div>
+    </div>
+
+    <section class="dashboard-metrics finance-metrics" aria-label="Resumo financeiro">
+      <article class="metric-card finance-metric-entry"><small>Entradas</small><strong id="financeMetricEntradas">—</strong><em id="financeMetricEntradasMeta">Lançamentos recebidos</em></article>
+      <article class="metric-card finance-metric-exit"><small>Saídas</small><strong id="financeMetricSaidas">—</strong><em id="financeMetricSaidasMeta">Lançamentos pagos</em></article>
+      <article class="metric-card finance-metric-balance"><small>Saldo do período</small><strong id="financeMetricSaldo">—</strong><em id="financeMetricSaldoMeta">Entradas menos saídas</em></article>
+      <article class="metric-card"><small>Materiais</small><strong id="financeMetricMateriais">—</strong><em id="financeMetricMateriaisMeta">Saídas da categoria material</em></article>
+      <article class="metric-card"><small>Pendentes</small><strong id="financeMetricPendentes">—</strong><em id="financeMetricPendentesMeta">Valores ainda em aberto</em></article>
+    </section>
+
+    <section class="finance-form card" id="financeFormCard" hidden aria-labelledby="financeFormTitle">
+      <div class="dashboard-section-head">
+        <div><div class="card-title" id="financeFormTitle"><span class="ico">＋</span> Novo lançamento</div><p class="card-sub">Todos os valores financeiros são inseridos manualmente.</p></div>
+        <button class="btn btn-ghost" id="financeFormClose" type="button">Fechar</button>
+      </div>
+      <form id="financeTransactionForm" class="finance-form-grid">
+        <div class="field"><label for="financeType">Tipo</label><select id="financeType" required><option value="entry">Entrada</option><option value="exit">Saída</option></select></div>
+        <div class="field"><label for="financeStatus">Status</label><select id="financeStatus" required><option value="paid">Pago / recebido</option><option value="pending">Pendente</option><option value="canceled">Cancelado</option></select></div>
+        <div class="field"><label for="financeDate">Data</label><input id="financeDate" type="date" required></div>
+        <div class="field"><label for="financeDueDate">Vencimento <span>(opcional)</span></label><input id="financeDueDate" type="date"></div>
+        <div class="field"><label for="financeCategory">Categoria</label><select id="financeCategory" required></select></div>
+        <div class="field"><label for="financeAmount">Valor</label><input id="financeAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" required></div>
+        <div class="field"><label for="financePaymentMethod">Forma de pagamento</label><select id="financePaymentMethod"><option value="">Não informado</option><option>Pix</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Boleto</option><option>Cheque</option><option>Outro</option></select></div>
+        <div class="field"><label for="financeCounterparty">Cliente / fornecedor</label><input id="financeCounterparty" type="text" placeholder="Nome da pessoa ou empresa"></div>
+        <div class="field"><label for="financeOrder">Pedido relacionado <span>(opcional)</span></label><select id="financeOrder"><option value="">Nenhum pedido</option></select></div>
+        <div class="field finance-material-field" hidden><label for="financeMaterialName">Material</label><input id="financeMaterialName" type="text" placeholder="Ex.: Espuma 5 cm"></div>
+        <div class="field finance-material-field" hidden><label for="financeMaterialQuantity">Quantidade</label><input id="financeMaterialQuantity" type="number" min="0" step="0.001" inputmode="decimal" placeholder="0"></div>
+        <div class="field finance-material-field" hidden><label for="financeMaterialUnit">Unidade</label><select id="financeMaterialUnit"><option value="un">unidade</option><option value="m">metro</option><option value="kg">kg</option><option value="l">litro</option><option value="cx">caixa</option><option value="outro">outro</option></select></div>
+        <div class="field finance-material-field" hidden><label for="financeMaterialUnitCost">Custo unitário <span>(opcional)</span></label><input id="financeMaterialUnitCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+        <div class="field finance-form-wide"><label for="financeDescription">Descrição</label><input id="financeDescription" type="text" maxlength="180" placeholder="Ex.: Recebimento de sinal do pedido PED-2026-001" required></div>
+        <div class="field finance-form-wide"><label for="financeNotes">Observações <span>(opcional)</span></label><textarea id="financeNotes" rows="3" maxlength="500" placeholder="Detalhes adicionais do lançamento..."></textarea></div>
+        <div class="finance-form-actions finance-form-wide"><button class="btn btn-ghost" id="financeFormCancel" type="button">Cancelar</button><button class="btn btn-primary" type="submit">Salvar lançamento</button></div>
+      </form>
+    </section>
+
+    <section class="finance-charts-grid" aria-label="Estatísticas financeiras">
+      <section class="card dashboard-chart-card"><div class="card-title"><span class="ico">↗</span> Entradas x saídas</div><p class="card-sub">Fluxo dos lançamentos manuais no período.</p><canvas id="financeFluxoChart" aria-label="Gráfico de entradas e saídas"></canvas></section>
+      <section class="card dashboard-chart-card"><div class="card-title"><span class="ico">◒</span> Saídas por categoria</div><p class="card-sub">Onde o dinheiro foi gasto.</p><canvas id="financeCategoriasChart" aria-label="Gráfico de saídas por categoria"></canvas></section>
+    </section>
+
+    <section class="card finance-transactions-card" aria-labelledby="financeTransactionsTitle">
+      <div class="dashboard-section-head"><div><div class="card-title" id="financeTransactionsTitle"><span class="ico">◷</span> Lançamentos</div><p class="card-sub" id="financeTransactionsResumo">Nenhum lançamento carregado.</p></div><button class="btn btn-ghost" id="financeLimparFiltros" type="button">Limpar filtros</button></div>
+      <div class="finance-filters" role="search" aria-label="Filtrar lançamentos financeiros">
+        <label><span>Tipo</span><select id="financeFiltroTipo"><option value="all">Todos</option><option value="entry">Entradas</option><option value="exit">Saídas</option></select></label>
+        <label><span>Categoria</span><select id="financeFiltroCategoria"><option value="all">Todas</option></select></label>
+        <label><span>Status</span><select id="financeFiltroStatus"><option value="all">Todos</option><option value="paid">Pagos / recebidos</option><option value="pending">Pendentes</option><option value="canceled">Cancelados</option></select></label>
+        <label class="finance-filter-search"><span>Buscar</span><input id="financeFiltroBusca" type="search" placeholder="Descrição, cliente ou fornecedor"></label>
+      </div>
+      <div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Categoria</th><th>Relacionamento</th><th>Status</th><th class="finance-table-value">Valor</th><th>Ações</th></tr></thead><tbody id="financeTransactionsBody"></tbody></table></div>
+      <div class="empty-state" id="financeTransactionsEmpty" hidden>Nenhum lançamento corresponde aos filtros.</div>
+    </section>
+  </section>
+
   </div>
 
   <footer>Sistema de Pedidos</footer>
@@ -398,6 +465,6 @@
 <script src="supabase-client.js?v=dashboard-20260816"></script>
 <script src="auth-guard.js?v=dashboard-20260816"></script>
 <script src="theme.js?v=light-mode-20260816"></script>
-<script src="main.js?v=history-actions-20260816"></script>
+<script src="main.js?v=finance-20260816"></script>
 </body>
 </html>
