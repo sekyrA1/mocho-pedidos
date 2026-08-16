@@ -43,12 +43,12 @@
 <main class="wrap dashboard-shell">
   <aside class="dashboard-sidebar" aria-label="Navegação do painel">
     <div class="dashboard-sidebar-label">Duo Equilibrium</div>
-    <nav class="dashboard-menu">
-      <button class="active" type="button" data-dashboard-nav="visao"><span>◈</span>Visão geral</button>
-      <button type="button" data-dashboard-nav="novo"><span>＋</span>Novo pedido</button>
-      <button type="button" data-dashboard-nav="historico"><span>◷</span>Pedidos anteriores</button>
-      <button type="button" data-dashboard-nav="prospeccao"><span>⌖</span>Prospecção RJ</button>
-      <button type="button" data-dashboard-nav="financas" hidden><span>＄</span>Finanças</button>
+    <nav class="dashboard-menu" aria-label="Seções do painel">
+      <button class="active" type="button" data-dashboard-nav="visao" aria-current="page" title="Visão geral (G)"><span>◈</span>Visão geral</button>
+      <button type="button" data-dashboard-nav="novo" title="Novo pedido (N)"><span>＋</span>Novo pedido</button>
+      <button type="button" data-dashboard-nav="historico" title="Pedidos anteriores (H)"><span>◷</span>Pedidos anteriores</button>
+      <button type="button" data-dashboard-nav="prospeccao" title="Prospecção RJ"><span>⌖</span>Prospecção RJ</button>
+      <button type="button" data-dashboard-nav="financas" title="Finanças (F)" hidden><span>＄</span>Finanças</button>
     </nav>
     <div class="dashboard-sidebar-note"><strong>Operação online</strong>Pedidos e clientes sincronizados com o banco.</div>
     <button class="btn btn-ghost dashboard-logout" id="btnSair" type="button"><span aria-hidden="true">↪</span> Sair da sessão</button>
@@ -63,7 +63,7 @@
     </div>
     <div class="dashboard-head-actions">
       <label class="dashboard-periodo"><span>Período</span><select id="dashboardPeriodo" aria-label="Período dos indicadores"><option value="mes" selected>Este mês</option><option value="trimestre">Últimos 3 meses</option><option value="ano">Este ano</option><option value="todos">Todos os pedidos</option></select></label>
-      <button class="btn btn-ghost dashboard-refresh" id="btnAtualizarDashboard" type="button">Atualizar</button>
+      <button class="btn btn-ghost dashboard-refresh" id="btnAtualizarDashboard" type="button" aria-label="Atualizar indicadores">Atualizar</button>
       <span class="dashboard-sync" id="dashboardSync">Conectando ao banco…</span>
     </div>
   </section>
@@ -76,7 +76,7 @@
     <article class="metric-card"><small>Ticket médio</small><strong id="metricTicket">—</strong><em id="metricTicketMeta">Base real</em></article>
   </section>
   <section class="dashboard-quick-actions" aria-label="Ações rápidas">
-    <div><strong>Atalhos da operação</strong><span>Comece uma tarefa sem procurar no menu.</span></div>
+    <div><strong>Atalhos da operação</strong><span>Comece uma tarefa sem procurar no menu.</span><small class="dashboard-shortcuts"><kbd>N</kbd> novo <kbd>H</kbd> histórico <kbd>/</kbd> buscar</small></div>
     <div class="quick-action-list">
       <button class="btn btn-primary" type="button" data-dashboard-nav="novo">＋ Novo pedido</button>
       <button class="btn btn-outline" type="button" data-dashboard-nav="historico">Ver pedidos</button>

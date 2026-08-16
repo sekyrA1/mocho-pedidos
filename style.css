@@ -186,6 +186,7 @@
   .dashboard-menu button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 10px; border: 0; border-radius: 10px; cursor: pointer; color: var(--muted); background: transparent; font: inherit; font-size: .83rem; font-weight: 650; text-align: left; transition: .2s ease; }
   .dashboard-menu button span { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,.06); color: #c9cdef; font-size: .77rem; }
   .dashboard-menu button:hover { color: #fff; background: rgba(255,255,255,.055); }
+  .dashboard-menu button:focus-visible, .btn:focus-visible, .theme-toggle:focus-visible { outline: 3px solid rgba(141,130,255,.62); outline-offset: 2px; }
   .dashboard-menu button.active { color: #fff; background: linear-gradient(90deg, rgba(197,28,42,.26), rgba(197,28,42,.08)); box-shadow: inset 3px 0 0 var(--accent); }
   .dashboard-menu button.active span { color: #fff; background: var(--accent); }
   .dashboard-sidebar-note { margin-top: 18px; padding: 12px; border-radius: 12px; background: rgba(197,28,42,.1); color: #d9dcef; font-size: .7rem; line-height: 1.5; }
@@ -243,6 +244,8 @@
   .dashboard-quick-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 22px; padding: 14px 16px; border: 1px solid rgba(161,171,230,.13); border-radius: 14px; background: rgba(28,31,65,.42); }
   .dashboard-quick-actions strong { display: block; color: var(--ink); font-size: .79rem; }
   .dashboard-quick-actions span { display: block; margin-top: 3px; color: var(--muted); font-size: .68rem; }
+  .dashboard-shortcuts { display: block; margin-top: 10px; color: var(--muted); font-size: .64rem; }
+  .dashboard-shortcuts kbd { display: inline-grid; min-width: 18px; height: 18px; margin: 0 2px; padding: 0 4px; place-items: center; border: 1px solid rgba(161,171,230,.24); border-radius: 5px; color: var(--ink-soft); background: rgba(255,255,255,.06); font: 700 .61rem/1 'Inter', sans-serif; }
   .quick-action-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .quick-action-list .btn { min-height: 34px; padding: 8px 11px; font-size: .7rem; }
   .dashboard-overview-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 14px; margin-bottom: 14px; }
@@ -464,6 +467,9 @@
     text-decoration: none;
   }
   .btn:disabled { opacity: .62; cursor: wait; transform: none; box-shadow: none; }
+  .btn.is-loading { position: relative; padding-right: 34px; }
+  .btn.is-loading::after { content: ''; position: absolute; right: 12px; width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: buttonSpin .7s linear infinite; }
+  @keyframes buttonSpin { to { transform: rotate(360deg); } }
   .btn:active { transform: scale(.985); }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 8px 18px rgba(187,23,34,.28); transform: translateY(-1px); }
@@ -653,7 +659,8 @@
   /* ---------- RESPONSIVO ---------- */
   @media (max-width: 960px) {
     .dashboard-shell { grid-template-columns: 1fr; }
-    .dashboard-sidebar { position: static; display: flex; gap: 12px; align-items: center; overflow-x: auto; }
+    .dashboard-sidebar { position: static; display: flex; gap: 12px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+    .dashboard-sidebar::-webkit-scrollbar { display: none; }
     .dashboard-sidebar-label, .dashboard-sidebar-note { display: none; }
     .dashboard-logout { width: auto; flex: 0 0 auto; margin-top: 0; white-space: nowrap; }
     .dashboard-menu { flex-direction: row; min-width: max-content; }
@@ -688,6 +695,7 @@
     .dashboard-metrics { grid-template-columns: 1fr 1fr; }
     .finance-metrics { grid-template-columns: 1fr 1fr; }
     .dashboard-quick-actions { align-items: flex-start; flex-direction: column; }
+    .dashboard-shortcuts { margin-top: 8px; }
     .quick-action-list { justify-content: flex-start; }
     .dashboard-pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .dashboard-section-head { align-items: flex-start; flex-direction: column; }

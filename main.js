@@ -1888,14 +1888,59 @@ function atualizarAcessoFinancas() {
 function iniciarNavegacaoDashboard() {
   const botoes = document.querySelectorAll('[data-dashboard-nav]');
   const paginas = document.querySelectorAll('[data-dashboard-page]');
-  const navegar = destino => {
+  const destinosValidos = new Set([...paginas].map(pagina => pagina.dataset.dashboardPage));
+  const destinoDoHash = () => {
+    const destino = window.location.hash.replace(/^#/, '').trim();
+    return destinosValidos.has(destino) ? destino : 'visao';
+  };
+  const atualizarEstadoNavegacao = destino => {
+    botoes.forEach(botao => {
+      const ativo = botao.dataset.dashboardNav === destino;
+      botao.classList.toggle('active', ativo);
+      if (ativo) botao.setAttribute('aria-current', 'page');
+      else botao.removeAttribute('aria-current');
+    });
+  };
+  const navegar = (destino, opcoes = {}) => {
+    if (!destinosValidos.has(destino)) destino = 'visao';
     if (destino === 'financas' && window.currentAuth?.profile?.role !== 'admin') return;
     paginas.forEach(pagina => pagina.hidden = pagina.dataset.dashboardPage !== destino);
-    botoes.forEach(botao => botao.classList.toggle('active', botao.dataset.dashboardNav === destino));
+    atualizarEstadoNavegacao(destino);
+    if (!opcoes.silencioso && window.location.hash !== `#${destino}`) {
+      window.history.pushState({ dashboardPage: destino }, '', `${window.location.pathname}${window.location.search}#${destino}`);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   window.navegarDashboard = navegar;
   botoes.forEach(botao => botao.addEventListener('click', () => navegar(botao.dataset.dashboardNav)));
+  navegar(destinoDoHash(), { silencioso: true });
+  window.addEventListener('popstate', () => navegar(destinoDoHash(), { silencioso: true }));
+  window.addEventListener('hashchange', () => navegar(destinoDoHash(), { silencioso: true }));
+}
+
+function iniciarAtalhosDashboard() {
+  const campoBuscaAtual = () => {
+    const pagina = document.querySelector('.dashboard-page:not([hidden])');
+    if (!pagina) return null;
+    return pagina.querySelector('input[type="search"]') || pagina.querySelector('input[placeholder*="Buscar"]');
+  };
+  document.addEventListener('keydown', evento => {
+    const elemento = evento.target;
+    const digitando = ['INPUT', 'TEXTAREA', 'SELECT'].includes(elemento?.tagName) || elemento?.isContentEditable;
+    if (digitando || evento.ctrlKey || evento.metaKey || evento.altKey) return;
+    const tecla = evento.key.toLowerCase();
+    if (tecla === 'n') window.navegarDashboard?.('novo');
+    if (tecla === 'h') window.navegarDashboard?.('historico');
+    if (tecla === 'f' && window.currentAuth?.profile?.role === 'admin') window.navegarDashboard?.('financas');
+    if (tecla === 'g') window.navegarDashboard?.('visao');
+    if (tecla === '/') {
+      const campo = campoBuscaAtual();
+      if (campo) { evento.preventDefault(); campo.focus(); }
+    }
+    if (tecla === 'r' && document.querySelector('.dashboard-page[data-dashboard-page="visao"]:not([hidden])')) {
+      document.getElementById('btnAtualizarDashboard')?.click();
+    }
+  });
 }
 
 let HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '', ordenar: 'recentes' };
@@ -2633,9 +2678,16 @@ function iniciarInterfaceFinanceira() {
     if (botao.disabled) return;
     botao.disabled = true;
     botao.textContent = 'Atualizando…';
-    await carregarDadosFinanceiros();
-    botao.disabled = false;
-    botao.textContent = 'Atualizar';
+    botao.classList.add('is-loading');
+    botao.setAttribute('aria-busy', 'true');
+    try {
+      await carregarDadosFinanceiros();
+    } finally {
+      botao.disabled = false;
+      botao.textContent = 'Atualizar';
+      botao.classList.remove('is-loading');
+      botao.removeAttribute('aria-busy');
+    }
   });
   atualizarAcessoFinancas();
   renderFinanceiro();
@@ -2649,6 +2701,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHistoricoPedidos();
   iniciarGraficoPedidos([]);
   iniciarNavegacaoDashboard();
+  iniciarAtalhosDashboard();
   atualizarAcessoProspecao();
   iniciarInterfaceFinanceira();
   const periodo = document.getElementById('dashboardPeriodo');
@@ -2661,9 +2714,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (botao.disabled) return;
     botao.disabled = true;
     botao.textContent = 'Atualizando…';
-    await carregarDadosRemotos();
-    botao.disabled = false;
-    botao.textContent = 'Atualizar';
+    botao.classList.add('is-loading');
+    botao.setAttribute('aria-busy', 'true');
+    try {
+      await carregarDadosRemotos();
+    } finally {
+      botao.disabled = false;
+      botao.textContent = 'Atualizar';
+      botao.classList.remove('is-loading');
+      botao.removeAttribute('aria-busy');
+    }
   });
   ['historicoBusca', 'historicoStatus', 'historicoDe', 'historicoAte', 'historicoOrdenar'].forEach(id => {
     const campo = document.getElementById(id);
