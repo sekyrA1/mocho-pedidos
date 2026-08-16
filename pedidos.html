@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://skzvmjocbwdboxvqvngc.supabase.co wss://skzvmjocbwdboxvqvngc.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com; frame-src 'self' blob:; worker-src 'self' blob:; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://skzvmjocbwdboxvqvngc.supabase.co wss://skzvmjocbwdboxvqvngc.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com; frame-src 'self' blob: https://www.google.com https://maps.google.com; worker-src 'self' blob:; form-action 'self'; upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
 <title>Duo Equilibrium — Gerador de Pedidos</title>
 <link rel="icon" type="image/png" href="assets/logo-duo-equilibrium.png">
@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=security-20260815">
+<link rel="stylesheet" href="style.css?v=prospection-20260815">
 </head>
 <body class="dashboard-dark">
 
@@ -43,6 +43,7 @@
       <button class="active" type="button" data-dashboard-nav="visao"><span>◈</span>Visão geral</button>
       <button type="button" data-dashboard-nav="novo"><span>＋</span>Novo pedido</button>
       <button type="button" data-dashboard-nav="historico"><span>◷</span>Pedidos anteriores</button>
+      <button type="button" data-dashboard-nav="prospeccao"><span>⌖</span>Prospecção RJ</button>
     </nav>
     <div class="dashboard-sidebar-note"><strong>Operação online</strong>Pedidos e clientes sincronizados com o banco.</div>
     <button class="btn btn-ghost dashboard-logout" id="btnSair" type="button"><span aria-hidden="true">↪</span> Sair da sessão</button>
@@ -248,7 +249,41 @@
     <section class="card" aria-labelledby="historicoTitulo">
       <div class="card-title" id="historicoTitulo"><span class="ico">◷</span> Histórico de pedidos</div>
       <p class="card-sub">Pedidos registrados pela equipe no painel.</p>
+      <div class="historico-filtros" role="search" aria-label="Buscar pedidos">
+        <label class="historico-busca"><span aria-hidden="true">⌕</span><input id="historicoBusca" type="search" autocomplete="off" placeholder="Nome, telefone, e-mail, pedido, CPF ou CNPJ…" aria-label="Buscar por dados do pedido"></label>
+        <label><span>Status</span><select id="historicoStatus" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="active">Em andamento</option><option value="delivered">Concluídos</option><option value="canceled">Cancelados</option></select></label>
+        <label><span>De</span><input id="historicoDe" type="date" aria-label="Data inicial"></label>
+        <label><span>Até</span><input id="historicoAte" type="date" aria-label="Data final"></label>
+        <button class="btn btn-ghost" id="historicoLimpar" type="button">Limpar</button>
+      </div>
+      <div class="historico-resumo" id="historicoResumo" aria-live="polite"></div>
       <div class="historico-lista" id="historicoPedidos"></div>
+    </section>
+  </section>
+
+  <section class="dashboard-page" data-dashboard-page="prospeccao" hidden aria-label="Prospecção no Rio de Janeiro">
+    <div class="dashboard-head">
+      <div><div class="dashboard-kicker">Novos destinos de vendas</div><h1>Prospecção no Rio</h1><p>Encontre clínicas e odontologistas na área e destaque quem ainda não é cliente.</p></div>
+      <span class="dashboard-sync" id="prospeccaoSync">Aguardando busca</span>
+    </div>
+    <section class="card prospect-search-card" aria-labelledby="prospeccaoTitulo">
+      <div class="card-title" id="prospeccaoTitulo"><span class="ico">⌖</span> Buscar oportunidades</div>
+      <p class="card-sub">A pesquisa usa a área escolhida e compara os resultados com clientes já cadastrados.</p>
+      <form class="prospect-form" id="prospeccaoForm">
+        <label><span>O que procurar</span><input id="prospeccaoQuery" type="search" value="dentista" maxlength="100" placeholder="Dentista, clínica odontológica…"></label>
+        <label><span>Bairro ou área</span><input id="prospeccaoArea" type="text" value="Rio de Janeiro" maxlength="100" placeholder="Copacabana, Barra, Centro…"></label>
+        <label><span>Raio</span><select id="prospeccaoRaio"><option value="3000">3 km</option><option value="5000">5 km</option><option value="10000" selected>10 km</option><option value="20000">20 km</option><option value="50000">50 km</option></select></label>
+        <button class="btn btn-accent" id="btnBuscarProspecção" type="submit">Buscar oportunidades</button>
+      </form>
+      <div class="prospect-links"><a id="prospeccaoMapaLink" class="btn btn-ghost" href="https://www.google.com/maps/search/dentista+Rio+de+Janeiro" target="_blank" rel="noopener noreferrer">Abrir no Google Maps ↗</a><span id="prospeccaoAviso" class="prospect-aviso">A busca detalhada precisa da chave segura do Google Places.</span></div>
+      <div class="prospect-layout">
+        <div class="prospect-resultados" id="prospeccaoResultados" aria-live="polite"><div class="empty-state">Defina uma área para buscar novos potenciais.</div></div>
+        <div class="prospect-mapa-shell"><div class="prospect-mapa-label">Mapa da área</div><iframe id="prospeccaoMapa" title="Mapa de oportunidades no Rio de Janeiro" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" src="https://www.google.com/maps?q=Rio+de+Janeiro&output=embed"></iframe></div>
+      </div>
+      <div class="prospect-salvos">
+        <div class="prospect-section-head"><div><strong>Minha prospecção</strong><span id="prospeccaoSalvosResumo">Nenhum lead salvo.</span></div></div>
+        <div class="prospect-salvos-lista" id="prospeccaoSalvos"></div>
+      </div>
     </section>
   </section>
 
@@ -271,6 +306,10 @@
       <div class="history-detail-grid" id="historyDialogFabricacao"></div>
       <div class="history-dialog-actions">
         <button class="btn btn-ghost" id="historyDialogBack" type="button">Fechar</button>
+        <select class="history-status-select" id="historyDialogStatus" aria-label="Alterar status do pedido">
+          <option value="draft">Rascunho</option><option value="confirmed">Confirmado</option><option value="in_production">Em produção</option><option value="quality_check">Em conferência</option><option value="ready">Pronto</option><option value="delivered">Concluído</option><option value="canceled">Cancelado</option>
+        </select>
+        <button class="btn btn-outline" id="historyDialogStatusSave" type="button">Salvar status</button>
         <button class="btn btn-outline" id="historyDialogPreview" type="button">Visualizar PDF</button>
         <button class="btn btn-accent" id="historyDialogPdf" type="button">Baixar PDF do pedido</button>
         <button class="btn btn-danger" id="historyDialogDelete" type="button">Excluir pedido</button>
@@ -321,8 +360,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.102.0/dist/umd/supabase.min.js" integrity="sha384-1qxdq7qui0E5OGQx7KlSCCpPydLIt8lgUjqM3jGxWLXq9AIGC661VIvU/NPT6BQP" crossorigin="anonymous"></script>
-<script src="supabase-client.js?v=security-20260815"></script>
-<script src="auth-guard.js?v=security2-20260815"></script>
-<script src="main.js?v=security2-20260815"></script>
+<script src="supabase-client.js?v=prospection-20260815"></script>
+<script src="auth-guard.js?v=prospection-20260815"></script>
+<script src="main.js?v=prospection-20260815"></script>
 </body>
 </html>

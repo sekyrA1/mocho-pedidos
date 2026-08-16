@@ -186,6 +186,131 @@ export type Database = {
           },
         ]
       }
+      prospect_interactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          happened_at: string
+          id: string
+          interaction_type: string
+          note: string
+          prospect_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          happened_at?: string
+          id?: string
+          interaction_type: string
+          note: string
+          prospect_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          happened_at?: string
+          id?: string
+          interaction_type?: string
+          note?: string
+          prospect_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_interactions_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospects: {
+        Row: {
+          address_line: string | null
+          business_name: string
+          category: string | null
+          city: string
+          cnpj: string | null
+          contact_name: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          google_place_id: string | null
+          id: string
+          last_checked_at: string | null
+          latitude: number | null
+          longitude: number | null
+          neighborhood: string | null
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          priority: string
+          source_provider: string
+          source_url: string | null
+          state: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+          website: string | null
+        }
+        Insert: {
+          address_line?: string | null
+          business_name: string
+          category?: string | null
+          city?: string
+          cnpj?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          google_place_id?: string | null
+          id?: string
+          last_checked_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          neighborhood?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          priority?: string
+          source_provider?: string
+          source_url?: string | null
+          state?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Update: {
+          address_line?: string | null
+          business_name?: string
+          category?: string | null
+          city?: string
+          cnpj?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          google_place_id?: string | null
+          id?: string
+          last_checked_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          neighborhood?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          priority?: string
+          source_provider?: string
+          source_url?: string | null
+          state?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           amount_received: number
@@ -434,4 +559,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

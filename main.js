@@ -12,6 +12,17 @@ let itemCounter = 0;
 let savedOrderId = null;
 let dashboardOrders = [];
 let pedidosChart = null;
+let CLIENTES_CADASTRADOS = [];
+let PROSPECTS_SALVOS = [];
+let PROSPECCAO_RESULTADOS = [];
+const PROSPECT_STATUS_LABELS = {
+  new: 'Novo',
+  in_contact: 'Em contato',
+  qualified: 'Qualificado',
+  converted: 'Convertido',
+  archived: 'Arquivado'
+};
+const STATUS_SEQUENCE = ['draft', 'confirmed', 'in_production', 'quality_check', 'ready', 'delivered', 'canceled'];
 
 const STATUS_LABELS = {
   draft: 'Rascunho',
@@ -19,7 +30,7 @@ const STATUS_LABELS = {
   in_production: 'Em produção',
   quality_check: 'Em conferência',
   ready: 'Pronto',
-  delivered: 'Entregue',
+  delivered: 'Concluído',
   canceled: 'Cancelado'
 };
 
@@ -1140,7 +1151,7 @@ function mapearPedido(row, itensPorPedido) {
   const itensPedido = itensPorPedido.get(row.id) || [];
   const item = itensPedido[0] || {};
   const statusCode = row.status || 'draft';
-  return {
+  const pedidoMapeado = {
     dbId: row.id,
     id: row.order_number || row.id,
     cliente: customer.name || snapshot.name || 'Cliente não informado',
@@ -1163,6 +1174,46 @@ function mapearPedido(row, itensPorPedido) {
     raw: row,
     rawItems: itensPedido
   };
+  pedidoMapeado.searchText = normalizarPesquisa([
+    pedidoMapeado.id,
+    pedidoMapeado.cliente,
+    pedidoMapeado.nome,
+    pedidoMapeado.telefone,
+    pedidoMapeado.email,
+    pedidoMapeado.produto,
+    pedidoMapeado.data,
+    pedidoMapeado.espuma,
+    pedidoMapeado.pistao,
+    pedidoMapeado.corAssento,
+    pedidoMapeado.corEstrutura,
+    pedidoMapeado.raw?.customer_snapshot?.cpf,
+    pedidoMapeado.raw?.customer_snapshot?.cnpj,
+    pedidoMapeado.raw?.customer_snapshot?.event_code,
+    pedidoMapeado.raw?.customer_snapshot?.city,
+    pedidoMapeado.raw?.customer_snapshot?.state,
+    pedidoMapeado.raw?.representative,
+    pedidoMapeado.raw?.notes
+  ].join(' '));
+  pedidoMapeado.searchDigits = normalizarDigitos([
+    pedidoMapeado.telefone,
+    pedidoMapeado.raw?.customer_snapshot?.cpf,
+    pedidoMapeado.raw?.customer_snapshot?.cnpj,
+    pedidoMapeado.id
+  ].join(' '));
+  return pedidoMapeado;
+}
+
+function normalizarPesquisa(valor) {
+  return String(valor ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function normalizarDigitos(valor) {
+  return String(valor ?? '').replace(/\D/g, '');
 }
 
 async function carregarDadosRemotos() {
@@ -1193,10 +1244,25 @@ async function carregarDadosRemotos() {
       itensPorPedido.get(item.order_id).push(item);
     });
 
+    const podeProspecção = ['admin', 'sales'].includes(window.currentAuth?.profile?.role);
+    if (podeProspecção) {
+      const { data: clientes, error: erroClientes } = await window.appSupabase
+        .from('customers')
+        .select('id, name, contact_name, phone, email, cnpj, address_line, address_number, neighborhood, city, state')
+        .order('updated_at', { ascending: false });
+      if (erroClientes) throw erroClientes;
+      CLIENTES_CADASTRADOS = clientes || [];
+      await carregarProspecoesSalvas();
+    } else {
+      CLIENTES_CADASTRADOS = [];
+      PROSPECTS_SALVOS = [];
+    }
+
     dashboardOrders = (pedidos || []).map(pedido => mapearPedido(pedido, itensPorPedido));
     HISTORICO_PEDIDOS = dashboardOrders;
     renderMetricas(dashboardOrders);
     renderHistoricoPedidos();
+    atualizarAcessoProspecao();
     iniciarGraficoPedidos(dashboardOrders);
     if (sync) sync.textContent = `${dashboardOrders.length} ${dashboardOrders.length === 1 ? 'pedido sincronizado' : 'pedidos sincronizados'}`;
     if (historicoSync) historicoSync.textContent = `${dashboardOrders.length} ${dashboardOrders.length === 1 ? 'registro' : 'registros'}`;
@@ -1205,8 +1271,11 @@ async function carregarDadosRemotos() {
     console.error('Falha ao carregar pedidos:', error);
     dashboardOrders = [];
     HISTORICO_PEDIDOS = [];
+    CLIENTES_CADASTRADOS = [];
+    PROSPECTS_SALVOS = [];
     renderMetricas([]);
     renderHistoricoPedidos();
+    renderProspecoesSalvas();
     iniciarGraficoPedidos([]);
     if (sync) sync.textContent = 'Não foi possível carregar os dados';
     if (historicoSync) historicoSync.textContent = 'Falha ao carregar';
@@ -1279,28 +1348,366 @@ function iniciarNavegacaoDashboard() {
   botoes.forEach(botao => botao.addEventListener('click', () => navegar(botao.dataset.dashboardNav)));
 }
 
+let HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '' };
+
+function podeGerenciarPedidos() {
+  return ['admin', 'sales'].includes(window.currentAuth?.profile?.role);
+}
+
+function filtrarHistoricoPedidos() {
+  const query = normalizarPesquisa(HISTORICO_FILTROS.query);
+  const tokens = query.split(' ').filter(Boolean);
+  const digits = normalizarDigitos(HISTORICO_FILTROS.query);
+  return HISTORICO_PEDIDOS.filter(pedido => {
+    const statusOk = HISTORICO_FILTROS.status === 'all'
+      || (HISTORICO_FILTROS.status === 'active' && !['delivered', 'canceled'].includes(pedido.statusCode))
+      || pedido.statusCode === HISTORICO_FILTROS.status;
+    const dataOk = (!HISTORICO_FILTROS.de || pedido.issueDate >= HISTORICO_FILTROS.de)
+      && (!HISTORICO_FILTROS.ate || pedido.issueDate <= HISTORICO_FILTROS.ate);
+    const textoOk = !tokens.length || tokens.every(token => pedido.searchText.includes(token));
+    const digitosOk = !digits || digits.length < 4 || pedido.searchDigits.includes(digits);
+    return statusOk && dataOk && textoOk && digitosOk;
+  });
+}
+
+function criarBotaoHistorico(texto, classe, ariaLabel, aoClicar) {
+  const botao = document.createElement('button');
+  botao.className = `btn ${classe}`;
+  botao.type = 'button';
+  botao.textContent = texto;
+  botao.setAttribute('aria-label', ariaLabel);
+  botao.addEventListener('click', aoClicar);
+  return botao;
+}
+
 function renderHistoricoPedidos() {
   const lista = document.getElementById('historicoPedidos');
   if (!lista) return;
-  if (!HISTORICO_PEDIDOS.length) {
-    lista.innerHTML = '<div class="empty-state">Nenhum pedido registrado ainda.</div>';
+  const filtrados = filtrarHistoricoPedidos();
+  const resumo = document.getElementById('historicoResumo');
+  if (resumo) {
+    resumo.textContent = HISTORICO_PEDIDOS.length
+      ? `${filtrados.length} ${filtrados.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'} de ${HISTORICO_PEDIDOS.length}.`
+      : 'Nenhum pedido registrado ainda.';
+  }
+  lista.innerHTML = '';
+  if (!filtrados.length) {
+    const vazio = document.createElement('div');
+    vazio.className = 'empty-state';
+    vazio.textContent = HISTORICO_PEDIDOS.length ? 'Nenhum pedido corresponde aos filtros.' : 'Nenhum pedido registrado ainda.';
+    lista.appendChild(vazio);
     return;
   }
-  const podeExcluir = window.currentAuth?.profile?.role === 'admin';
-  lista.innerHTML = HISTORICO_PEDIDOS.map(pedido => {
-    const emProducao = ['in_production', 'quality_check'].includes(pedido.statusCode);
-    const botaoExcluir = podeExcluir ? `<button class="btn btn-danger" type="button" data-history-delete="${escapeHtml(pedido.id)}" aria-label="Excluir ${escapeHtml(pedido.id)}">Lixeira</button>` : '';
-    return `<article class="historico-item">
-      <div class="historico-topo"><div><strong>${escapeHtml(pedido.id)}</strong><span>${escapeHtml(pedido.cliente)} · ${escapeHtml(pedido.data || '—')}</span></div><span class="status-pedido${emProducao ? ' producao' : ''}">${escapeHtml(pedido.status)}</span></div>
-      <span>${escapeHtml(pedido.produto)} · ${pedido.itens} ${pedido.itens === 1 ? 'item' : 'itens'}</span>
-      <div class="historico-valor">${fmt(pedido.valor)}</div>
-      <div class="historico-acoes"><button class="btn btn-outline" type="button" data-history-view="${escapeHtml(pedido.id)}">Ver dados</button><button class="btn btn-ghost" type="button" data-history-pdf="${escapeHtml(pedido.id)}">PDF</button>${botaoExcluir}</div>
-    </article>`;
-  }).join('');
 
-  lista.querySelectorAll('[data-history-view]').forEach(botao => botao.addEventListener('click', () => abrirHistorico(botao.dataset.historyView)));
-  lista.querySelectorAll('[data-history-pdf]').forEach(botao => botao.addEventListener('click', () => baixarPdfHistorico(botao.dataset.historyPdf)));
-  lista.querySelectorAll('[data-history-delete]').forEach(botao => botao.addEventListener('click', () => excluirPedidoHistorico(botao.dataset.historyDelete)));
+  const podeExcluir = window.currentAuth?.profile?.role === 'admin';
+  const podeStatus = podeGerenciarPedidos();
+  filtrados.forEach(pedido => {
+    const emProducao = ['in_production', 'quality_check'].includes(pedido.statusCode);
+    const artigo = document.createElement('article');
+    artigo.className = 'historico-item';
+
+    const topo = document.createElement('div');
+    topo.className = 'historico-topo';
+    const identificacao = document.createElement('div');
+    const codigo = document.createElement('strong');
+    codigo.textContent = pedido.id;
+    const cliente = document.createElement('span');
+    cliente.textContent = `${pedido.cliente} · ${pedido.data || '—'}`;
+    identificacao.append(codigo, cliente);
+    const status = document.createElement('span');
+    status.className = `status-pedido${emProducao ? ' producao' : ''}`;
+    status.textContent = pedido.status;
+    topo.append(identificacao, status);
+
+    const produto = document.createElement('span');
+    produto.textContent = `${pedido.produto} · ${pedido.itens} ${pedido.itens === 1 ? 'item' : 'itens'}`;
+    const valor = document.createElement('div');
+    valor.className = 'historico-valor';
+    valor.textContent = fmt(pedido.valor);
+    const acoes = document.createElement('div');
+    acoes.className = 'historico-acoes';
+    acoes.append(
+      criarBotaoHistorico('Ver dados', 'btn-outline', `Ver dados de ${pedido.id}`, () => abrirHistorico(pedido.id)),
+      criarBotaoHistorico('PDF', 'btn-ghost', `Gerar PDF de ${pedido.id}`, () => baixarPdfHistorico(pedido.id))
+    );
+
+    if (podeStatus) {
+      const seletor = document.createElement('select');
+      seletor.className = 'history-status-select';
+      seletor.setAttribute('aria-label', `Alterar status de ${pedido.id}`);
+      STATUS_SEQUENCE.forEach(statusCode => {
+        const option = document.createElement('option');
+        option.value = statusCode;
+        option.textContent = STATUS_LABELS[statusCode];
+        option.selected = statusCode === pedido.statusCode;
+        seletor.appendChild(option);
+      });
+      seletor.addEventListener('change', () => alterarStatusPedido(pedido.id, seletor.value));
+      acoes.appendChild(seletor);
+    }
+    if (podeExcluir) acoes.appendChild(criarBotaoHistorico('Lixeira', 'btn-danger', `Excluir ${pedido.id}`, () => excluirPedidoHistorico(pedido.id)));
+    artigo.append(topo, produto, valor, acoes);
+    lista.appendChild(artigo);
+  });
+}
+
+async function alterarStatusPedido(id, novoStatus) {
+  const pedido = HISTORICO_PEDIDOS.find(item => item.id === id);
+  if (!pedido || !STATUS_SEQUENCE.includes(novoStatus)) return;
+  if (!podeGerenciarPedidos()) {
+    toast('Somente vendas ou administradores podem alterar o status.', 'error');
+    renderHistoricoPedidos();
+    return;
+  }
+  if (pedido.statusCode === novoStatus) return;
+  const confirmacao = novoStatus === 'delivered'
+    ? `Marcar o pedido ${pedido.id} como concluído?`
+    : novoStatus === 'canceled'
+      ? `Cancelar o pedido ${pedido.id}?`
+      : `Alterar ${pedido.id} para “${STATUS_LABELS[novoStatus]}”?`;
+  if (!window.confirm(confirmacao)) {
+    renderHistoricoPedidos();
+    return;
+  }
+  const userId = await obterUserId();
+  if (!userId || !window.appSupabase) {
+    toast('Sua sessão expirou. Entre novamente no painel.', 'error');
+    renderHistoricoPedidos();
+    return;
+  }
+  toast('Atualizando status…', 'loading');
+  const { data, error } = await window.appSupabase
+    .from('orders')
+    .update({ status: novoStatus, updated_by: userId })
+    .eq('id', pedido.dbId)
+    .select('id, status')
+    .maybeSingle();
+  if (error || !data) {
+    console.error('Falha ao alterar status:', error);
+    toast(`Não foi possível alterar: ${mensagemErroSupabase(error || { message: 'operação não autorizada' })}`, 'error');
+    renderHistoricoPedidos();
+    return;
+  }
+  await carregarDadosRemotos();
+  if (pedidoHistoricoAtual?.dbId === pedido.dbId) abrirHistorico(id);
+  toast(`Pedido ${id}: ${STATUS_LABELS[novoStatus]}.`, 'success');
+}
+
+function atualizarAcessoProspecao() {
+  const permitido = ['admin', 'sales'].includes(window.currentAuth?.profile?.role);
+  const botao = document.querySelector('[data-dashboard-nav="prospeccao"]');
+  const pagina = document.querySelector('[data-dashboard-page="prospeccao"]');
+  if (botao) botao.hidden = !permitido;
+  if (pagina && !permitido) pagina.hidden = true;
+  if (permitido) renderProspecoesSalvas();
+}
+
+function compararProspectComClientes(resultado) {
+  const nomeResultado = normalizarPesquisa(resultado.name);
+  const telefoneResultado = normalizarDigitos(resultado.phone);
+  const enderecoResultado = normalizarPesquisa(resultado.address);
+  const salvo = PROSPECTS_SALVOS.find(item =>
+    (resultado.placeId && item.google_place_id === resultado.placeId)
+    || (normalizarPesquisa(item.business_name) === nomeResultado && normalizarPesquisa(item.address_line).includes(normalizarPesquisa(resultado.address).slice(0, 18)))
+  );
+  const cliente = CLIENTES_CADASTRADOS.find(item => {
+    const telefoneCliente = normalizarDigitos(item.phone);
+    const nomeCliente = normalizarPesquisa(item.name);
+    const enderecoCliente = normalizarPesquisa([item.address_line, item.neighborhood, item.city].filter(Boolean).join(' '));
+    const mesmoTelefone = telefoneResultado.length >= 8 && telefoneCliente.length >= 8 && telefoneResultado === telefoneCliente;
+    const mesmoNome = nomeResultado && nomeCliente && (nomeResultado === nomeCliente || nomeResultado.includes(nomeCliente) || nomeCliente.includes(nomeResultado));
+    const mesmoEndereco = enderecoResultado && enderecoCliente && (enderecoResultado.includes(enderecoCliente.slice(0, 18)) || enderecoCliente.includes(enderecoResultado.slice(0, 18)));
+    return mesmoTelefone || (mesmoNome && mesmoEndereco);
+  });
+  return { salvo, cliente };
+}
+
+function criarLinkProspect(texto, url, classe = 'btn btn-ghost') {
+  const link = document.createElement('a');
+  link.className = classe;
+  link.textContent = texto;
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  return link;
+}
+
+function renderProspecaoResultados() {
+  const lista = document.getElementById('prospeccaoResultados');
+  if (!lista) return;
+  lista.innerHTML = '';
+  if (!PROSPECCAO_RESULTADOS.length) {
+    const vazio = document.createElement('div');
+    vazio.className = 'empty-state';
+    vazio.textContent = 'Nenhuma oportunidade encontrada nessa área.';
+    lista.appendChild(vazio);
+    return;
+  }
+  PROSPECCAO_RESULTADOS.forEach(resultado => {
+    const { salvo, cliente } = compararProspectComClientes(resultado);
+    const artigo = document.createElement('article');
+    artigo.className = 'prospect-card';
+    const cabecalho = document.createElement('div');
+    cabecalho.className = 'prospect-card-head';
+    const titulo = document.createElement('h3');
+    titulo.textContent = resultado.name;
+    const badge = document.createElement('span');
+    badge.className = `prospect-badge ${cliente ? '' : salvo ? 'revisar' : 'novo'}`;
+    badge.textContent = cliente ? 'Já é cliente' : salvo ? 'Na prospecção' : 'Novo potencial';
+    cabecalho.append(titulo, badge);
+    const endereco = document.createElement('p');
+    endereco.textContent = resultado.address || 'Endereço não informado';
+    const meta = document.createElement('div');
+    meta.className = 'prospect-card-meta';
+    const distancia = document.createElement('span');
+    distancia.textContent = resultado.distanceKm === null ? 'Distância não informada' : `${resultado.distanceKm.toLocaleString('pt-BR')} km`;
+    const telefone = document.createElement('span');
+    telefone.textContent = resultado.phone || 'Telefone não informado';
+    const cnpj = document.createElement('span');
+    cnpj.textContent = resultado.cnpj ? `CNPJ: ${resultado.cnpj}` : 'CNPJ: não identificado';
+    meta.append(distancia, telefone, cnpj);
+    const acoes = document.createElement('div');
+    acoes.className = 'prospect-card-actions';
+    if (resultado.mapsUrl) acoes.appendChild(criarLinkProspect('Google Maps ↗', resultado.mapsUrl));
+    if (resultado.website) acoes.appendChild(criarLinkProspect('Site ↗', resultado.website));
+    if (!cliente && !salvo) {
+      const cnpjInput = document.createElement('input');
+      cnpjInput.className = 'prospect-cnpj-input';
+      cnpjInput.type = 'text';
+      cnpjInput.inputMode = 'numeric';
+      cnpjInput.maxLength = 18;
+      cnpjInput.placeholder = 'CNPJ (opcional)';
+      cnpjInput.setAttribute('aria-label', `CNPJ de ${resultado.name}`);
+      const salvar = criarBotaoHistorico('Salvar na prospecção', 'btn-accent', `Salvar ${resultado.name} na prospecção`, () => salvarProspect(resultado, cnpjInput.value));
+      acoes.appendChild(cnpjInput);
+      acoes.appendChild(salvar);
+    }
+    artigo.append(cabecalho, endereco, meta, acoes);
+    lista.appendChild(artigo);
+  });
+}
+
+function renderProspecoesSalvas() {
+  const lista = document.getElementById('prospeccaoSalvos');
+  const resumo = document.getElementById('prospeccaoSalvosResumo');
+  if (!lista) return;
+  lista.innerHTML = '';
+  if (resumo) resumo.textContent = PROSPECTS_SALVOS.length
+    ? `${PROSPECTS_SALVOS.length} ${PROSPECTS_SALVOS.length === 1 ? 'lead salvo' : 'leads salvos'}.`
+    : 'Nenhum lead salvo.';
+  PROSPECTS_SALVOS.slice(0, 12).forEach(prospect => {
+    const item = document.createElement('article');
+    item.className = 'prospect-salvo';
+    const nome = document.createElement('strong');
+    nome.textContent = prospect.business_name;
+    const local = document.createElement('span');
+    local.textContent = [prospect.neighborhood, prospect.city].filter(Boolean).join(' · ') || prospect.address_line || 'Local não informado';
+    const status = document.createElement('span');
+    status.className = 'status-pedido';
+    status.textContent = `${PROSPECT_STATUS_LABELS[prospect.status] || prospect.status} · ${prospect.priority === 'high' ? 'Alta prioridade' : prospect.priority === 'low' ? 'Baixa prioridade' : 'Prioridade média'}`;
+    item.append(nome, local, status);
+    lista.appendChild(item);
+  });
+}
+
+async function carregarProspecoesSalvas() {
+  if (!window.appSupabase || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) return;
+  const { data, error } = await window.appSupabase
+    .from('prospects')
+    .select('id, google_place_id, business_name, address_line, neighborhood, city, status, priority, source_url, updated_at')
+    .order('updated_at', { ascending: false });
+  if (error) {
+    console.error('Falha ao carregar prospecção:', error);
+    PROSPECTS_SALVOS = [];
+    document.getElementById('prospeccaoAviso')?.replaceChildren(document.createTextNode('Não foi possível carregar a prospecção salva.'));
+    return;
+  }
+  PROSPECTS_SALVOS = data || [];
+  renderProspecoesSalvas();
+}
+
+function atualizarMapaProspecao(query, area) {
+  const texto = `${query} ${area}, Rio de Janeiro`;
+  const mapa = document.getElementById('prospeccaoMapa');
+  const link = document.getElementById('prospeccaoMapaLink');
+  const mapaUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(texto)}`;
+  if (mapa) mapa.src = `https://www.google.com/maps?q=${encodeURIComponent(texto)}&output=embed`;
+  if (link) link.href = mapaUrl;
+}
+
+async function buscarProspecoes(evento) {
+  evento?.preventDefault();
+  if (!window.appSupabase || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) {
+    toast('A prospecção está disponível apenas para vendas e administradores.', 'error');
+    return;
+  }
+  const query = document.getElementById('prospeccaoQuery')?.value.trim() || 'dentista';
+  const area = document.getElementById('prospeccaoArea')?.value.trim() || 'Rio de Janeiro';
+  const radius = Number(document.getElementById('prospeccaoRaio')?.value || 10000);
+  const botao = document.getElementById('btnBuscarProspecção');
+  const aviso = document.getElementById('prospeccaoAviso');
+  atualizarMapaProspecao(query, area);
+  if (botao) { botao.disabled = true; botao.textContent = 'Buscando…'; }
+  if (aviso) aviso.textContent = 'Consultando oportunidades na área…';
+  try {
+    const { data, error } = await window.appSupabase.functions.invoke('prospect-search', {
+      body: { query, area, radius, pageSize: 20 }
+    });
+    if (error || !data?.results) {
+      console.error('Falha na busca de prospecção:', error);
+      PROSPECCAO_RESULTADOS = [];
+      renderProspecaoResultados();
+      if (aviso) aviso.textContent = 'A busca detalhada ainda não está configurada. Use o botão para abrir a pesquisa no Google Maps.';
+      toast('Busca externa indisponível; o link do Google Maps continua disponível.', 'error');
+      return;
+    }
+    PROSPECCAO_RESULTADOS = data.results;
+    renderProspecaoResultados();
+    const sync = document.getElementById('prospeccaoSync');
+    if (sync) sync.textContent = `${PROSPECCAO_RESULTADOS.length} oportunidades encontradas`;
+    if (aviso) aviso.textContent = 'Resultados comparados com os clientes cadastrados. CNPJ precisa de confirmação manual.';
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = 'Buscar oportunidades'; }
+  }
+}
+
+async function salvarProspect(resultado, cnpjInformado = '') {
+  if (!window.appSupabase || !podeGerenciarPedidos()) return;
+  const userId = await obterUserId();
+  if (!userId) {
+    toast('Sua sessão expirou. Entre novamente no painel.', 'error');
+    return;
+  }
+  const payload = {
+    google_place_id: resultado.placeId || null,
+    business_name: resultado.name,
+    category: resultado.types?.[0] || document.getElementById('prospeccaoQuery')?.value || 'odontologia',
+    phone: resultado.phone || null,
+    website: resultado.website || null,
+    address_line: resultado.address || null,
+    city: 'Rio de Janeiro',
+    state: 'RJ',
+    latitude: resultado.latitude,
+    longitude: resultado.longitude,
+    cnpj: cnpjInformado.replace(/\D/g, '').slice(0, 14) || null,
+    source_provider: 'google_places',
+    source_url: resultado.mapsUrl || null,
+    status: 'new',
+    priority: 'medium',
+    last_checked_at: new Date().toISOString(),
+    created_by: userId,
+    updated_by: userId
+  };
+  const { data, error } = await window.appSupabase.from('prospects').insert(payload).select('id, google_place_id, business_name, address_line, city, status, priority, updated_at').single();
+  if (error) {
+    console.error('Falha ao salvar prospect:', error);
+    toast(error.code === '23505' ? 'Este local já está na prospecção.' : `Não foi possível salvar: ${mensagemErroSupabase(error)}`, 'error');
+    return;
+  }
+  PROSPECTS_SALVOS = [data, ...PROSPECTS_SALVOS];
+  renderProspecoesSalvas();
+  renderProspecaoResultados();
+  toast(`${resultado.name} adicionado à prospecção.`, 'success');
 }
 
 function construirContextoPdfHistorico(pedido) {
@@ -1368,8 +1775,16 @@ function abrirHistorico(id) {
   if (!pedido) return;
   pedidoHistoricoAtual = pedido;
   const podeExcluir = window.currentAuth?.profile?.role === 'admin';
+  const podeStatus = podeGerenciarPedidos();
   const botaoExcluir = document.getElementById('historyDialogDelete');
+  const seletorStatus = document.getElementById('historyDialogStatus');
+  const botaoStatus = document.getElementById('historyDialogStatusSave');
   if (botaoExcluir) botaoExcluir.hidden = !podeExcluir;
+  if (seletorStatus) {
+    seletorStatus.value = pedido.statusCode;
+    seletorStatus.hidden = !podeStatus;
+  }
+  if (botaoStatus) botaoStatus.hidden = !podeStatus;
   document.getElementById('historyDialogTitle').textContent = `${pedido.id} · ${pedido.cliente}`;
   const emProducao = ['in_production', 'quality_check'].includes(pedido.statusCode);
   document.getElementById('historyDialogOverview').innerHTML = `
@@ -1535,6 +1950,28 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHistoricoPedidos();
   iniciarGraficoPedidos([]);
   iniciarNavegacaoDashboard();
+  atualizarAcessoProspecao();
+  ['historicoBusca', 'historicoStatus', 'historicoDe', 'historicoAte'].forEach(id => {
+    const campo = document.getElementById(id);
+    if (!campo) return;
+    campo.addEventListener('input', () => {
+      HISTORICO_FILTROS = {
+        query: document.getElementById('historicoBusca')?.value || '',
+        status: document.getElementById('historicoStatus')?.value || 'all',
+        de: document.getElementById('historicoDe')?.value || '',
+        ate: document.getElementById('historicoAte')?.value || ''
+      };
+      renderHistoricoPedidos();
+    });
+    campo.addEventListener('change', () => campo.dispatchEvent(new Event('input')));
+  });
+  document.getElementById('historicoLimpar')?.addEventListener('click', () => {
+    ['historicoBusca', 'historicoDe', 'historicoAte'].forEach(id => { const campo = document.getElementById(id); if (campo) campo.value = ''; });
+    const status = document.getElementById('historicoStatus');
+    if (status) status.value = 'all';
+    HISTORICO_FILTROS = { query: '', status: 'all', de: '', ate: '' };
+    renderHistoricoPedidos();
+  });
   const dialogHistorico = document.getElementById('historyDialog');
   document.getElementById('historyDialogClose').addEventListener('click', () => dialogHistorico.close());
   document.getElementById('historyDialogBack').addEventListener('click', () => dialogHistorico.close());
@@ -1546,6 +1983,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('historyDialogDelete').addEventListener('click', () => {
     if (pedidoHistoricoAtual) excluirPedidoHistorico(pedidoHistoricoAtual.id);
+  });
+  document.getElementById('historyDialogStatusSave').addEventListener('click', () => {
+    const seletor = document.getElementById('historyDialogStatus');
+    if (pedidoHistoricoAtual && seletor) alterarStatusPedido(pedidoHistoricoAtual.id, seletor.value);
   });
   dialogHistorico.addEventListener('click', evento => {
     if (evento.target === dialogHistorico) dialogHistorico.close();
@@ -1570,6 +2011,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnNovo').addEventListener('click', novoPedido);
   document.getElementById('btnPreencherTeste').addEventListener('click', preencherPedidoTeste);
   document.getElementById('btnSair').addEventListener('click', sairDaSessao);
+  document.getElementById('prospeccaoForm')?.addEventListener('submit', buscarProspecoes);
   ['desconto', 'frete'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
 
   renderTabela();
