@@ -641,6 +641,8 @@
   .finance-status-paid { color: #197052; background: rgba(61,190,144,.1); }
   .finance-status-pending { color: #946000; background: rgba(229,163,61,.14); }
   .finance-status-canceled { color: var(--muted); background: rgba(161,171,230,.13); }
+  .finance-origin-badge { display: inline-flex; align-items: center; padding: 6px 8px; border: 1px solid rgba(141,130,255,.24); border-radius: 9px; color: #6f61d7; background: rgba(141,130,255,.1); font-size: .62rem; font-weight: 800; }
+  body.dashboard-dark .finance-origin-badge { color: #c6c0ff; border-color: rgba(141,130,255,.28); background: rgba(141,130,255,.13); }
   .finance-delete-btn { padding: 6px 8px !important; font-size: .62rem !important; white-space: nowrap; }
   body.dashboard-dark .finance-form-grid input, body.dashboard-dark .finance-form-grid select, body.dashboard-dark .finance-form-grid textarea,
   body.dashboard-dark .finance-filters input, body.dashboard-dark .finance-filters select { border-color: rgba(161,171,230,.16); color: #e8eaff; background: rgba(6,8,23,.42); }

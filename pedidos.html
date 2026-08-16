@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=finance-test-20260816">
+<link rel="stylesheet" href="style.css?v=finance-orders-20260816">
 </head>
 <body class="dashboard-dark">
 
@@ -328,7 +328,7 @@
       <div>
         <div class="dashboard-kicker">Controle manual do caixa</div>
         <h1>Finanças</h1>
-        <p>Registre entradas, saídas e os materiais gastos pela operação.</p>
+        <p>Registre entradas, saídas e materiais; valores recebidos em pedidos entram automaticamente.</p>
       </div>
       <div class="dashboard-head-actions">
         <label class="dashboard-periodo"><span>Período</span><select id="financePeriodo" aria-label="Período dos lançamentos financeiros"><option value="mes" selected>Este mês</option><option value="trimestre">Últimos 3 meses</option><option value="ano">Este ano</option><option value="todos">Todos os lançamentos</option></select></label>
@@ -373,7 +373,7 @@
     </section>
 
     <section class="finance-charts-grid" aria-label="Estatísticas financeiras">
-      <section class="card dashboard-chart-card"><div class="card-title"><span class="ico">↗</span> Entradas x saídas</div><p class="card-sub">Fluxo dos lançamentos manuais no período.</p><canvas id="financeFluxoChart" aria-label="Gráfico de entradas e saídas"></canvas></section>
+      <section class="card dashboard-chart-card"><div class="card-title"><span class="ico">↗</span> Entradas x saídas</div><p class="card-sub">Fluxo dos lançamentos manuais, pedidos e saídas.</p><canvas id="financeFluxoChart" aria-label="Gráfico de entradas e saídas"></canvas></section>
       <section class="card dashboard-chart-card"><div class="card-title"><span class="ico">◒</span> Saídas por categoria</div><p class="card-sub">Onde o dinheiro foi gasto.</p><canvas id="financeCategoriasChart" aria-label="Gráfico de saídas por categoria"></canvas></section>
     </section>
 
@@ -466,6 +466,6 @@
 <script src="supabase-client.js?v=dashboard-20260816"></script>
 <script src="auth-guard.js?v=dashboard-20260816"></script>
 <script src="theme.js?v=light-mode-20260816"></script>
-<script src="main.js?v=finance-test-20260816"></script>
+<script src="main.js?v=finance-orders-20260816"></script>
 </body>
 </html>

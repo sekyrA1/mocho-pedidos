@@ -1628,8 +1628,44 @@ function fecharFormularioFinanceiro(reset = false) {
   }
 }
 
+function obterEntradasPedidosFinanceiros() {
+  const pedidosComEntradaManual = new Set(
+    financeTransactions
+      .filter(lancamento => lancamento.type === 'entry' && lancamento.status !== 'canceled' && lancamento.order_id)
+      .map(lancamento => lancamento.order_id)
+  );
+  return dashboardOrders
+    .filter(pedido => pedido.statusCode !== 'canceled' && !pedidosComEntradaManual.has(pedido.dbId))
+    .map(pedido => ({
+      id: `pedido-${pedido.dbId}`,
+      source: 'order',
+      type: 'entry',
+      status: 'paid',
+      transaction_date: pedido.raw?.issue_date || pedido.issueDate,
+      due_date: null,
+      category: 'venda',
+      description: `Recebimento do pedido ${pedido.id}`,
+      amount: Number(pedido.raw?.amount_received || 0),
+      payment_method: null,
+      counterparty: pedido.cliente,
+      order_id: pedido.dbId,
+      material_name: null,
+      material_quantity: null,
+      material_unit: null,
+      material_unit_cost: null,
+      notes: 'Entrada automática baseada no valor recebido informado no pedido.',
+      created_at: pedido.raw?.created_at || '',
+      updated_at: pedido.raw?.updated_at || ''
+    }))
+    .filter(lancamento => lancamento.amount > 0);
+}
+
+function todosLancamentosFinanceiros() {
+  return [...financeTransactions, ...obterEntradasPedidosFinanceiros()];
+}
+
 function renderMetricasFinanceiras() {
-  const periodo = financeTransactions.filter(dentroDoPeriodoFinanceiro);
+  const periodo = todosLancamentosFinanceiros().filter(dentroDoPeriodoFinanceiro);
   const ativos = periodo.filter(lancamento => lancamento.status !== 'canceled');
   const entradas = ativos.filter(lancamento => lancamento.type === 'entry' && lancamento.status === 'paid').reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0);
   const saidas = ativos.filter(lancamento => lancamento.type === 'exit' && lancamento.status === 'paid').reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0);
@@ -1659,7 +1695,7 @@ function financeRelacionamento(lancamento) {
 
 function filtrarLancamentosFinanceiros() {
   const query = normalizarPesquisa(FINANCE_FILTROS.query);
-  return financeTransactions
+  return todosLancamentosFinanceiros()
     .filter(dentroDoPeriodoFinanceiro)
     .filter(lancamento => FINANCE_FILTROS.type === 'all' || lancamento.type === FINANCE_FILTROS.type)
     .filter(lancamento => FINANCE_FILTROS.category === 'all' || lancamento.category === FINANCE_FILTROS.category)
@@ -1680,7 +1716,7 @@ function renderLancamentosFinanceiros() {
     const total = filtrados.reduce((soma, lancamento) => soma + Number(lancamento.amount || 0), 0);
     resumo.textContent = filtrados.length
       ? `${filtrados.length} ${filtrados.length === 1 ? 'lançamento' : 'lançamentos'} · ${fmt(total)} no recorte.`
-      : (financeTransactions.length ? 'Nenhum lançamento corresponde aos filtros.' : 'Nenhum lançamento registrado ainda.');
+      : (todosLancamentosFinanceiros().length ? 'Nenhum lançamento corresponde aos filtros.' : 'Nenhum lançamento registrado ainda.');
   }
   filtrados.forEach(lancamento => {
     const linha = document.createElement('tr');
@@ -1699,7 +1735,15 @@ function renderLancamentosFinanceiros() {
       <td class="finance-table-value ${tipoEntrada ? 'finance-value-entry' : 'finance-value-exit'}">${tipoEntrada ? '+' : '-'} ${escapeHtml(fmt(lancamento.amount))}</td>
       <td></td>`;
     const acoes = linha.lastElementChild;
-    acoes.appendChild(criarBotaoHistorico('Excluir', 'btn-danger finance-delete-btn', `Excluir lançamento ${lancamento.description}`, () => excluirLancamentoFinanceiro(lancamento.id)));
+    if (lancamento.source === 'order') {
+      const origem = document.createElement('span');
+      origem.className = 'finance-origin-badge';
+      origem.textContent = 'Pedido';
+      origem.title = 'Entrada automática baseada no valor recebido do pedido';
+      acoes.appendChild(origem);
+    } else {
+      acoes.appendChild(criarBotaoHistorico('Excluir', 'btn-danger finance-delete-btn', `Excluir lançamento ${lancamento.description}`, () => excluirLancamentoFinanceiro(lancamento.id)));
+    }
     corpo.appendChild(linha);
   });
 }
@@ -1714,7 +1758,7 @@ function iniciarGraficosFinanceiros() {
   const meses = Array.from({ length: 6 }, (_, indice) => new Date(hoje.getFullYear(), hoje.getMonth() - 5 + indice, 1));
   const chaves = meses.map(mes => `${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, '0')}`);
   const labels = meses.map(mes => mes.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
-  const dados = financeTransactions.filter(lancamento => dentroDoPeriodoFinanceiro(lancamento) && lancamento.status !== 'canceled');
+  const dados = todosLancamentosFinanceiros().filter(lancamento => dentroDoPeriodoFinanceiro(lancamento) && lancamento.status !== 'canceled');
   const entradas = chaves.map(chave => dados.filter(lancamento => lancamento.type === 'entry' && lancamento.status === 'paid' && lancamento.transaction_date?.startsWith(chave)).reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0));
   const saidas = chaves.map(chave => dados.filter(lancamento => lancamento.type === 'exit' && lancamento.status === 'paid' && lancamento.transaction_date?.startsWith(chave)).reduce((total, lancamento) => total + Number(lancamento.amount || 0), 0));
   const opcoesComuns = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c6cae6', usePointStyle: true, boxWidth: 9, font: { family: 'Inter', size: 11 } } }, tooltip: { backgroundColor: '#151837', titleColor: '#fff', bodyColor: '#dfe2fb', borderColor: 'rgba(161,171,230,.2)', borderWidth: 1 } }, scales: { x: { grid: { display: false }, ticks: { color: '#9097bc', font: { family: 'Inter' } }, border: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(161,171,230,.12)' }, ticks: { color: '#9097bc', callback: valor => `R$ ${Number(valor / 1000).toFixed(0)}k` }, border: { display: false } } } };
@@ -1746,7 +1790,8 @@ async function carregarDadosFinanceiros() {
     financeTransactions = data || [];
     preencherPedidosFinanceiros();
     renderFinanceiro();
-    if (sync) sync.textContent = `${financeTransactions.length} ${financeTransactions.length === 1 ? 'lançamento sincronizado' : 'lançamentos sincronizados'}`;
+    const entradasPedidos = obterEntradasPedidosFinanceiros();
+    if (sync) sync.textContent = `${financeTransactions.length} manuais · ${entradasPedidos.length} ${entradasPedidos.length === 1 ? 'pedido' : 'pedidos'} como entrada`;
     return true;
   } catch (error) {
     console.error('Falha ao carregar lançamentos financeiros:', error);
