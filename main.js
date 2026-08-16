@@ -1476,17 +1476,18 @@ function iniciarGraficoPedidos(pedidos = dashboardOrders) {
     data: {
       labels,
       datasets: [
-        { label: 'Faturamento (R$)', data: faturamento, backgroundColor: 'rgba(197,28,42,.78)', borderRadius: 7, borderSkipped: false },
-        { label: 'Pedidos', data: contagem, type: 'line', yAxisID: 'pedidos', borderColor: '#8d82ff', backgroundColor: '#8d82ff', pointBackgroundColor: '#f5f6ff', pointBorderColor: '#8d82ff', pointRadius: 4, tension: .38, borderWidth: 3 }
+        { label: 'Faturamento', data: faturamento, backgroundColor: 'rgba(197,28,42,.22)', hoverBackgroundColor: 'rgba(197,28,42,.4)', borderRadius: 4, borderSkipped: false, maxBarThickness: 28, categoryPercentage: .62, barPercentage: .72 },
+        { label: 'Pedidos', data: contagem, type: 'line', yAxisID: 'pedidos', borderColor: '#8d82ff', backgroundColor: '#8d82ff', pointBackgroundColor: '#8d82ff', pointBorderColor: '#151837', pointBorderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: .35, borderWidth: 2 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#c6cae6', usePointStyle: true, boxWidth: 9, font: { family: 'Inter', size: 11 } } }, tooltip: { backgroundColor: '#151837', titleColor: '#fff', bodyColor: '#dfe2fb', borderColor: 'rgba(161,171,230,.2)', borderWidth: 1 } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', align: 'end', labels: { color: '#a7add0', usePointStyle: true, pointStyle: 'line', boxWidth: 18, boxHeight: 6, padding: 12, font: { family: 'Inter', size: 10, weight: '600' } } }, tooltip: { backgroundColor: '#151837', titleColor: '#fff', bodyColor: '#dfe2fb', borderColor: 'rgba(161,171,230,.2)', borderWidth: 1, padding: 10, displayColors: false } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#9097bc', font: { family: 'Inter' } }, border: { display: false } },
-        y: { beginAtZero: true, grid: { color: 'rgba(161,171,230,.12)' }, ticks: { color: '#9097bc', callback: valor => `R$ ${Number(valor / 1000).toFixed(0)}k` }, border: { display: false } },
-        pedidos: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { color: '#9097bc', stepSize: 5 }, border: { display: false } }
+        x: { grid: { display: false }, ticks: { color: '#9097bc', padding: 6, font: { family: 'Inter', size: 10 } }, border: { display: false } },
+        y: { beginAtZero: true, grace: '8%', grid: { color: 'rgba(161,171,230,.08)' }, ticks: { color: '#777fa9', maxTicksLimit: 4, padding: 8, font: { size: 10 }, callback: valor => Number(valor) >= 1000 ? `R$ ${(Number(valor) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${Number(valor).toLocaleString('pt-BR')}` }, border: { display: false } },
+        pedidos: { position: 'right', beginAtZero: true, grace: '20%', grid: { drawOnChartArea: false }, ticks: { color: '#777fa9', maxTicksLimit: 4, padding: 8, font: { size: 10 }, callback: valor => Number(valor).toLocaleString('pt-BR') }, border: { display: false } }
       }
     }
   });

@@ -278,8 +278,8 @@
   .dashboard-recent-value b { color: var(--ink); font-size: .74rem; }
   .dashboard-recent-value .status-pedido { margin: 0; }
   .dashboard-recent-row > .btn { min-height: 30px; padding: 6px 10px; font-size: .68rem; }
-  .dashboard-chart-card { padding: 22px; min-height: 340px; }
-  .dashboard-chart-card canvas { width: 100% !important; height: 250px !important; margin-top: 15px; }
+  .dashboard-chart-card { padding: 20px 22px 18px; min-height: 320px; }
+  .dashboard-chart-card canvas { width: 100% !important; height: 230px !important; margin-top: 12px; }
   .historico-lista { display: flex; flex-direction: column; gap: 10px; }
   .historico-item { padding: 13px; border: 1px solid rgba(16,20,60,.08); border-radius: 13px; background: rgba(255,255,255,.42); }
   .historico-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
