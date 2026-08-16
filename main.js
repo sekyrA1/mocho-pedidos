@@ -1517,6 +1517,17 @@ function criarBotaoHistorico(texto, classe, ariaLabel, aoClicar) {
   return botao;
 }
 
+function criarBotaoIconeHistorico(svg, classe, ariaLabel, aoClicar) {
+  const botao = document.createElement('button');
+  botao.className = `btn ${classe}`;
+  botao.type = 'button';
+  botao.innerHTML = svg;
+  botao.setAttribute('aria-label', ariaLabel);
+  botao.title = ariaLabel;
+  botao.addEventListener('click', aoClicar);
+  return botao;
+}
+
 function renderHistoricoPedidos() {
   const lista = document.getElementById('historicoPedidos');
   if (!lista) return;
@@ -1566,7 +1577,8 @@ function renderHistoricoPedidos() {
     acoes.className = 'historico-acoes';
     acoes.append(
       criarBotaoHistorico('Ver dados', 'btn-outline', `Ver dados de ${pedido.id}`, () => abrirHistorico(pedido.id)),
-      criarBotaoHistorico('PDF', 'btn-ghost', `Gerar PDF de ${pedido.id}`, () => baixarPdfHistorico(pedido.id))
+      criarBotaoHistorico('Ver PDF', 'btn-outline', `Visualizar PDF de ${pedido.id}`, () => abrirPreviewHistorico(pedido.id)),
+      criarBotaoHistorico('Baixar PDF', 'btn-ghost', `Baixar PDF de ${pedido.id}`, () => baixarPdfHistorico(pedido.id))
     );
 
     if (podeStatus) {
@@ -1583,7 +1595,12 @@ function renderHistoricoPedidos() {
       seletor.addEventListener('change', () => alterarStatusPedido(pedido.id, seletor.value));
       acoes.appendChild(seletor);
     }
-    if (podeExcluir) acoes.appendChild(criarBotaoHistorico('Lixeira', 'btn-danger', `Excluir ${pedido.id}`, () => excluirPedidoHistorico(pedido.id)));
+    if (podeExcluir) acoes.appendChild(criarBotaoIconeHistorico(
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"></path></svg>',
+      'btn-danger history-trash-btn',
+      `Excluir ${pedido.id}`,
+      () => excluirPedidoHistorico(pedido.id)
+    ));
     artigo.append(topo, produto, valor, acoes);
     lista.appendChild(artigo);
   });

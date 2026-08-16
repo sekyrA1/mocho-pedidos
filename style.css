@@ -253,8 +253,11 @@
   .status-pedido { flex: none; padding: 4px 7px; border-radius: 999px; color: var(--success); background: rgba(21,115,71,.1); font-size: .62rem; font-weight: 800; text-transform: uppercase; }
   .status-pedido.producao { color: #a46300; background: rgba(204,126,0,.12); }
   .historico-valor { margin-top: 10px; color: var(--ink); font-size: .86rem; font-weight: 800; }
-  .historico-acoes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 11px; }
+  .historico-acoes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 11px; }
   .historico-acoes .btn { padding: 8px 9px; justify-content: center; font-size: .73rem; }
+  .history-trash-btn { width: 38px; min-width: 38px; height: 36px; padding: 0 !important; justify-self: end; border-radius: 10px; }
+  .history-trash-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .history-trash-btn:hover { background: #a71920; }
   .history-dialog { position: fixed; inset: 0; width: min(820px, calc(100vw - 36px)); max-height: min(720px, calc(100vh - 36px)); margin: auto; border: 1px solid rgba(169,179,242,.2); border-radius: 24px; padding: 0; overflow: hidden; color: var(--ink); background: #111431; box-shadow: 0 34px 100px rgba(0,0,0,.58); }
   .history-dialog::backdrop { background: rgba(3,5,18,.66); backdrop-filter: blur(10px) saturate(.82); }
   .history-dialog-content { max-height: inherit; overflow: auto; padding: 0; }
@@ -285,7 +288,7 @@
   .historico-busca > span { position: absolute; left: 12px; bottom: 10px; color: var(--accent); font-size: 1rem; line-height: 1; pointer-events: none; }
   .historico-busca input { padding-left: 32px; }
   .historico-resumo { min-height: 18px; margin: 0 0 12px; color: var(--muted); font-size: .72rem; }
-  .historico-acoes { grid-template-columns: repeat(4, 1fr); }
+  .historico-acoes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(150px, 1fr) 38px; }
   .history-status-select { min-width: 160px; padding: 8px 10px; border: 1px solid rgba(169,179,242,.18); border-radius: 10px; color: #dfe2fb; background: rgba(6,8,23,.64); font: inherit; font-size: .73rem; }
   .prospect-search-card { overflow: hidden; }
   .prospect-form { display: grid; grid-template-columns: minmax(220px, 1.3fr) minmax(200px, 1fr) 130px auto; align-items: end; gap: 10px; }
@@ -334,7 +337,7 @@
   .pdf-preview-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid rgba(169,179,242,.14); background: #111431; }
   .pdf-preview-actions .btn { min-width: 190px; justify-content: center; }
   @media (max-width: 640px) { .pdf-preview-dialog { width: calc(100vw - 16px); height: calc(100vh - 16px); border-radius: 16px; } .pdf-preview-body { padding: 8px; } .pdf-preview-actions .btn { min-width: 0; flex: 1; } }
-  @media (max-width: 640px) { .history-dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); border-radius: 18px; } .history-dialog-header, .history-dialog-body { padding-left: 18px; padding-right: 18px; } .history-order-overview, .history-detail-grid { grid-template-columns: 1fr 1fr; } .historico-acoes { grid-template-columns: 1fr; } .history-dialog-actions { flex-wrap: wrap; } .history-dialog-actions .btn { min-width: 0; flex: 1 1 45%; } }
+  @media (max-width: 640px) { .history-dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); border-radius: 18px; } .history-dialog-header, .history-dialog-body { padding-left: 18px; padding-right: 18px; } .history-order-overview, .history-detail-grid { grid-template-columns: 1fr 1fr; } .historico-acoes { grid-template-columns: 1fr; } .history-trash-btn { justify-self: start; } .history-dialog-actions { flex-wrap: wrap; } .history-dialog-actions .btn { min-width: 0; flex: 1 1 45%; } }
 
   .grid { display: grid; gap: 12px; }
   .cols-2 { grid-template-columns: 1fr 1fr; }
