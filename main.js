@@ -556,6 +556,19 @@ function renderTotais() {
   `;
 }
 
+function atualizarValorItemPrincipal() {
+  const valor = Number(document.getElementById('valorRecebido')?.value);
+  if (!Number.isFinite(valor) || itens.length !== 1) {
+    renderTotais();
+    return;
+  }
+  const item = itens[0];
+  const quantidade = Number(item.qtd) || 1;
+  item.unitario = valor;
+  item.subtotal = Number((valor * quantidade).toFixed(2));
+  renderTabela();
+}
+
 /* ============================================================
    DADOS DO PEDIDO
    ============================================================ */
@@ -2950,6 +2963,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSair').addEventListener('click', sairDaSessao);
   document.getElementById('prospeccaoForm')?.addEventListener('submit', buscarProspecoes);
   ['desconto', 'frete', 'parcelas'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
+  document.getElementById('valorRecebido')?.addEventListener('input', atualizarValorItemPrincipal);
   renderTotais();
 
   renderTabela();
