@@ -2652,8 +2652,11 @@ function editarPedidoHistorico(id) {
     unitario: Number(item.unitario) || 0,
     subtotal: Number(item.subtotal ?? (Number(item.unitario) || 0) * (Number(item.qtd) || 1))
   }));
-  renderTabela();
-  renderTotais();
+  if (itens.length === 1) atualizarValorItemPrincipal();
+  else {
+    renderTabela();
+    renderTotais();
+  }
   atualizarMocho3D();
 
   const botaoSalvar = document.getElementById('btnSalvar');
