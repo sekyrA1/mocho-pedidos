@@ -10,6 +10,7 @@ const CONFIG = {
 let itens = [];
 let itemCounter = 0;
 let savedOrderId = null;
+let pedidoEmEdicaoId = null;
 let dashboardOrders = [];
 let pedidosChart = null;
 let financeTransactions = [];
@@ -1106,7 +1107,8 @@ function validarPedido(p) {
 
 async function salvarPedido() {
   const botao = document.getElementById('btnSalvar');
-  if (savedOrderId) {
+  const emEdicao = Boolean(pedidoEmEdicaoId);
+  if (savedOrderId && !emEdicao) {
     toast('Este pedido já foi salvo.');
     return;
   }
@@ -1135,8 +1137,8 @@ async function salvarPedido() {
   }
 
   botao.disabled = true;
-  botao.textContent = 'Salvando…';
-  toast('Salvando pedido…', 'loading');
+  botao.textContent = emEdicao ? 'Atualizando…' : 'Salvando…';
+  toast(emEdicao ? 'Atualizando pedido…' : 'Salvando pedido…', 'loading');
   try {
     const customerId = await salvarCliente(p, userId);
     const customerSnapshot = {
@@ -1147,35 +1149,45 @@ async function salvarPedido() {
       height: p.medidaAltura, weight: p.peso, event_code: p.codigoEvento
     };
     const orderSnapshot = { ...p, items: itens.map(item => ({ ...item })) };
-    const { data: pedidoSalvo, error: erroPedido } = await window.appSupabase
-      .from('orders')
-      .insert({
-        order_number: p.pedido,
-        customer_id: customerId,
-        status: 'draft',
-        issue_date: p.data,
-        subtotal: p.subtotal,
-        discount_pct: p.descontoPct,
-        discount_amount: p.desconto,
-        freight: p.frete,
-        total: p.total,
-        amount_received: p.valorRecebido,
-        installments: p.parcelas,
-        installment_amount: p.valorParcela,
-        representative: p.representante || null,
-        signature_city: p.localAssinatura || null,
-        notes: p.observacoesPedido || null,
-        customer_snapshot: customerSnapshot,
-        order_snapshot: orderSnapshot,
-        created_by: userId,
-        updated_by: userId
-      })
-      .select('id')
-      .single();
-    if (erroPedido) throw erroPedido;
-
+    const dadosOrdem = {
+      order_number: p.pedido,
+      customer_id: customerId,
+      issue_date: p.data,
+      subtotal: p.subtotal,
+      discount_pct: p.descontoPct,
+      discount_amount: p.desconto,
+      freight: p.frete,
+      total: p.total,
+      amount_received: p.valorRecebido,
+      installments: p.parcelas,
+      installment_amount: p.valorParcela,
+      representative: p.representante || null,
+      signature_city: p.localAssinatura || null,
+      notes: p.observacoesPedido || null,
+      customer_snapshot: customerSnapshot,
+      order_snapshot: orderSnapshot,
+      updated_by: userId
+    };
+    let pedidoSalvo;
+    if (emEdicao) {
+      const { data, error } = await window.appSupabase
+        .from('orders')
+        .update(dadosOrdem)
+        .eq('id', pedidoEmEdicaoId)
+        .select('id')
+        .single();
+      pedidoSalvo = data;
+      if (error) throw error;
+    } else {
+      const { data, error } = await window.appSupabase
+        .from('orders')
+        .insert({ ...dadosOrdem, status: 'draft', created_by: userId })
+        .select('id')
+        .single();
+      pedidoSalvo = data;
+      if (error) throw error;
+    }
     const itensBanco = itens.map(item => ({
-      order_id: pedidoSalvo.id,
       product_name: item.descricao,
       quantity: item.qtd,
       foam_line: p.espessura,
@@ -1187,17 +1199,61 @@ async function salvarPedido() {
       unit_price: item.unitario,
       manufacturing_notes: item.detalhes
     }));
-    const { error: erroItens } = await window.appSupabase.from('order_items').insert(itensBanco);
-    if (erroItens) throw erroItens;
+    if (emEdicao) {
+      const { data: itensExistentes, error: erroBuscaItens } = await window.appSupabase
+        .from('order_items')
+        .select('id')
+        .eq('order_id', pedidoSalvo.id)
+        .order('created_at', { ascending: true });
+      if (erroBuscaItens) throw erroBuscaItens;
+
+      for (let indice = 0; indice < itensBanco.length; indice += 1) {
+        const itemBanco = itensBanco[indice];
+        const itemExistente = itensExistentes?.[indice];
+        if (itemExistente) {
+          const { error } = await window.appSupabase
+            .from('order_items')
+            .update(itemBanco)
+            .eq('id', itemExistente.id)
+            .eq('order_id', pedidoSalvo.id);
+          if (error) throw error;
+        } else {
+          const { error } = await window.appSupabase
+            .from('order_items')
+            .insert({ ...itemBanco, order_id: pedidoSalvo.id });
+          if (error) throw error;
+        }
+      }
+
+      const itensRemover = (itensExistentes || []).slice(itensBanco.length).map(item => item.id);
+      if (itensRemover.length) {
+        const { error } = await window.appSupabase
+          .from('order_items')
+          .delete()
+          .eq('order_id', pedidoSalvo.id)
+          .in('id', itensRemover);
+        if (error) throw error;
+      }
+    } else {
+      const { error: erroItens } = await window.appSupabase
+        .from('order_items')
+        .insert(itensBanco.map(item => ({ ...item, order_id: pedidoSalvo.id })));
+      if (erroItens) throw erroItens;
+    }
 
     savedOrderId = pedidoSalvo.id;
-    botao.textContent = 'Pedido salvo';
-    toast('Pedido salvo no banco.', 'success');
+    if (emEdicao) {
+      botao.disabled = false;
+      botao.textContent = 'Atualizar pedido';
+    } else {
+      botao.textContent = 'Pedido salvo';
+    }
+    toast(emEdicao ? 'Pedido atualizado no banco.' : 'Pedido salvo no banco.', 'success');
     await carregarDadosRemotos();
   } catch (error) {
     console.error('Falha ao salvar pedido:', error);
     botao.disabled = false;
-    botao.textContent = 'Salvar pedido';
+    botao.textContent = emEdicao ? 'Atualizar pedido' : 'Salvar pedido';
     toast(`Não foi possível salvar: ${mensagemErroSupabase(error)}`, 'error');
   }
 }
@@ -2045,6 +2101,7 @@ function renderHistoricoPedidos() {
   }
 
   const podeExcluir = window.currentAuth?.profile?.role === 'admin';
+  const podeEditar = podeGerenciarPedidos();
   const podeStatus = podeGerenciarPedidos();
   filtrados.forEach(pedido => {
     const emProducao = ['in_production', 'quality_check'].includes(pedido.statusCode);
@@ -2073,6 +2130,7 @@ function renderHistoricoPedidos() {
     acoes.className = 'historico-acoes';
     acoes.append(
       criarBotaoHistorico('Ver dados', 'btn-outline', `Ver dados de ${pedido.id}`, () => abrirHistorico(pedido.id)),
+      ...(podeEditar ? [criarBotaoHistorico('Editar', 'btn-outline', `Editar ${pedido.id}`, () => editarPedidoHistorico(pedido.id))] : []),
       criarBotaoHistorico('Ver PDF', 'btn-outline', `Visualizar PDF de ${pedido.id}`, () => abrirPreviewHistorico(pedido.id)),
       criarBotaoHistorico('Baixar PDF', 'btn-ghost', `Baixar PDF de ${pedido.id}`, () => baixarPdfHistorico(pedido.id))
     );
@@ -2465,8 +2523,8 @@ function construirContextoPdfHistorico(pedido) {
     peso: snapshot.peso ?? clienteSnapshot.weight ?? '',
     espessura: snapshot.espessura ?? pedido.espuma ?? '',
     pistao: snapshot.pistao ?? pedido.pistao ?? '',
-    corAssento: snapshot.corAssento ?? '',
-    corEstrutura: snapshot.corEstrutura ?? 'Cromado',
+    corAssento: snapshot.corAssento ?? pedido.corAssento ?? '',
+    corEstrutura: snapshot.corEstrutura ?? pedido.corEstrutura ?? 'Cromado',
     representante: snapshot.representante ?? pedido.raw?.representative ?? '',
     localAssinatura: snapshot.localAssinatura ?? pedido.raw?.signature_city ?? '',
     mSela: snapshot.mSela ?? true,
@@ -2481,11 +2539,14 @@ function abrirHistorico(id) {
   if (!pedido) return;
   pedidoHistoricoAtual = pedido;
   const podeExcluir = window.currentAuth?.profile?.role === 'admin';
+  const podeEditar = podeGerenciarPedidos();
   const podeStatus = podeGerenciarPedidos();
   const botaoExcluir = document.getElementById('historyDialogDelete');
+  const botaoEditar = document.getElementById('historyDialogEdit');
   const seletorStatus = document.getElementById('historyDialogStatus');
   const botaoStatus = document.getElementById('historyDialogStatusSave');
   if (botaoExcluir) botaoExcluir.hidden = !podeExcluir;
+  if (botaoEditar) botaoEditar.hidden = !podeEditar;
   if (seletorStatus) {
     seletorStatus.value = pedido.statusCode;
     seletorStatus.hidden = !podeStatus;
@@ -2515,6 +2576,81 @@ function baixarPdfHistorico(id) {
   const pedido = HISTORICO_PEDIDOS.find(item => item.id === id);
   if (!pedido) return;
   exportarPdfFabrica('download', construirContextoPdfHistorico(pedido));
+}
+
+function editarPedidoHistorico(id) {
+  const pedido = HISTORICO_PEDIDOS.find(item => item.id === id);
+  if (!pedido?.dbId) return;
+  if (!podeGerenciarPedidos()) {
+    toast('Somente vendas ou administradores podem editar pedidos.', 'error');
+    return;
+  }
+
+  const contexto = construirContextoPdfHistorico(pedido);
+  const { p, itens: itensSalvos } = contexto;
+  novoPedido();
+  pedidoEmEdicaoId = pedido.dbId;
+  savedOrderId = pedido.dbId;
+  window.navegarDashboard?.('novo');
+
+  const campos = {
+    cliente: p.cliente,
+    telefone: p.telefone,
+    data: p.data,
+    pedido: p.pedido,
+    codigoEvento: p.codigoEvento,
+    cpfCnpj: p.cpf,
+    nascimento: p.nascimento,
+    cnpj: p.cnpj,
+    email: p.email,
+    profissao: p.profissao,
+    rua: p.rua,
+    numero: p.numero,
+    complemento: p.complemento,
+    bairro: p.bairro,
+    cidade: p.cidade,
+    uf: p.uf,
+    cep: p.cep,
+    medidaAltura: p.medidaAltura,
+    peso: p.peso,
+    desconto: p.descontoPct,
+    frete: p.frete,
+    valorRecebido: p.valorRecebido,
+    parcelas: p.parcelas,
+    espessura: p.espessura,
+    pistao: p.pistao,
+    corAssento: p.corAssento || 'Preto',
+    corEstrutura: p.corEstrutura || 'Cromado',
+    representante: p.representante,
+    localAssinatura: p.localAssinatura,
+    linhaSoft: p.tamanhoSela === 'Padrão' ? '' : p.tamanhoSela,
+    observacoesPedido: p.observacoesPedido,
+    mSela: '1'
+  };
+  Object.entries(campos).forEach(([campoId, valor]) => {
+    const campo = document.getElementById(campoId);
+    if (campo) campo.value = valor ?? '';
+  });
+
+  itens = itensSalvos.map((item, indice) => ({
+    ...item,
+    id: ++itemCounter,
+    qtd: Number(item.qtd) || 1,
+    unitario: Number(item.unitario) || 0,
+    subtotal: Number(item.subtotal ?? (Number(item.unitario) || 0) * (Number(item.qtd) || 1))
+  }));
+  renderTabela();
+  renderTotais();
+  atualizarMocho3D();
+
+  const botaoSalvar = document.getElementById('btnSalvar');
+  if (botaoSalvar) {
+    botaoSalvar.disabled = false;
+    botaoSalvar.textContent = 'Atualizar pedido';
+  }
+  const dialog = document.getElementById('historyDialog');
+  if (dialog?.open) dialog.close();
+  toast(`Editando ${pedido.id}. Revise os dados e salve as alterações.`, 'loading');
 }
 
 async function excluirPedidoHistorico(id) {
@@ -2561,6 +2697,7 @@ function novoPedido() {
   itens = [];
   itemCounter = 0;
   savedOrderId = null;
+  pedidoEmEdicaoId = null;
   document.getElementById('cliente').value = '';
   document.getElementById('telefone').value = '';
   document.getElementById('pedido').value = '';
@@ -2772,6 +2909,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const dialogHistorico = document.getElementById('historyDialog');
   document.getElementById('historyDialogClose').addEventListener('click', () => dialogHistorico.close());
   document.getElementById('historyDialogBack').addEventListener('click', () => dialogHistorico.close());
+  document.getElementById('historyDialogEdit').addEventListener('click', () => {
+    if (pedidoHistoricoAtual) editarPedidoHistorico(pedidoHistoricoAtual.id);
+  });
   document.getElementById('historyDialogPdf').addEventListener('click', () => {
     if (pedidoHistoricoAtual) baixarPdfHistorico(pedidoHistoricoAtual.id);
   });

@@ -278,7 +278,7 @@
 
   <section class="dashboard-page" data-dashboard-page="historico" hidden aria-label="Pedidos anteriores">
     <div class="dashboard-head">
-      <div><div class="dashboard-kicker">Dados registrados</div><h1>Pedidos anteriores</h1><p>Consulte pedidos salvos no banco e gere uma cópia do PDF.</p></div>
+      <div><div class="dashboard-kicker">Dados registrados</div><h1>Pedidos anteriores</h1><p>Consulte, edite pedidos salvos no banco e gere uma cópia do PDF.</p></div>
       <span class="dashboard-sync" id="historicoSync">Carregando…</span>
     </div>
     <section class="card" aria-labelledby="historicoTitulo">
@@ -409,6 +409,7 @@
       <div class="history-detail-grid" id="historyDialogFabricacao"></div>
       <div class="history-dialog-actions">
         <button class="btn btn-ghost" id="historyDialogBack" type="button">Fechar</button>
+        <button class="btn btn-outline" id="historyDialogEdit" type="button">Editar pedido</button>
         <select class="history-status-select" id="historyDialogStatus" aria-label="Alterar status do pedido">
           <option value="draft">Rascunho</option><option value="confirmed">Confirmado</option><option value="in_production">Em produção</option><option value="quality_check">Em conferência</option><option value="ready">Pronto</option><option value="delivered">Concluído</option><option value="canceled">Cancelado</option>
         </select>
