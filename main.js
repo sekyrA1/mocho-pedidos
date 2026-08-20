@@ -406,7 +406,7 @@ function renderMocho3D() {
    ITENS
    ============================================================ */
 function calcularPrecoUnitario() {
-  return parseFloat(document.getElementById('valorRecebido')?.value) || 0;
+  return parseFloat(document.getElementById('valorTotal')?.value) || 0;
 }
 
 function addItem() {
@@ -557,7 +557,7 @@ function renderTotais() {
 }
 
 function atualizarValorItemPrincipal() {
-  const valor = Number(document.getElementById('valorRecebido')?.value);
+  const valor = Number(document.getElementById('valorTotal')?.value);
   if (!Number.isFinite(valor) || itens.length !== 1) {
     renderTotais();
     return;
@@ -585,7 +585,10 @@ function dadosPedido() {
     codigoEvento: campo('codigoEvento'), cpf: campo('cpfCnpj'), nascimento: campo('nascimento'), cnpj: campo('cnpj'),
     email: campo('email'), profissao: campo('profissao'), rua: campo('rua'), numero: campo('numero'),
     complemento: campo('complemento'), bairro: campo('bairro'), cidade: campo('cidade'), uf: campo('uf'), cep: campo('cep'),
-    medidaAltura: campo('medidaAltura'), peso: campo('peso'), valorRecebido: parseFloat(campo('valorRecebido')) || 0,
+    medidaAltura: campo('medidaAltura'), peso: campo('peso'),
+    // Mantido apenas para compatibilidade com registros antigos do banco.
+    // A interface e o PDF exibem exclusivamente o total do pedido.
+    valorRecebido: total,
     parcelas, valorParcela: Number((total / parcelas).toFixed(2)),
     espessura: campo('espessura'), pistao: campo('pistao'), corAssento: campo('corAssento'), corEstrutura: campo('corEstrutura'), representante: campo('representante'), localAssinatura: campo('localAssinatura'),
     mSela: true, tamanhoSela: campo('linhaSoft'), observacoesPedido: campo('observacoesPedido')
@@ -739,8 +742,8 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   doc.text(linhasObs, 102, yOpcoes + 14);
   linha(102, yOpcoes + 34, 190, yOpcoes + 34); linha(102, yOpcoes + 38, 190, yOpcoes + 38);
 
-  // A condição de pagamento fica em uma seção própria para não confundir
-  // valor recebido, total do pedido e valor individual das parcelas.
+  // A condição de pagamento fica em uma seção própria para separar
+  // o total do pedido e o valor individual das parcelas.
   const yPagamento = 247;
   doc.setFillColor(247, 248, 253); doc.setDrawColor(25, 31, 42); doc.setLineWidth(.35);
   doc.rect(14, yPagamento, 182, 18, 'FD');
@@ -748,11 +751,10 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   doc.text('CONDIÇÕES DE PAGAMENTO', 18, yPagamento + 4.5);
   const resumoPagamento = [
     ['TOTAL DO PEDIDO', fmt(p.total)],
-    ['VALOR RECEBIDO', fmt(p.valorRecebido)],
     ['Nº DE PARCELAS', String(Math.max(1, Number(p.parcelas) || 1))],
     ['VALOR DA PARCELA', fmt(valorParcela)]
   ];
-  const larguraPagamento = 43.5;
+  const larguraPagamento = 58;
   resumoPagamento.forEach(([rotulo, valor], indice) => {
     const x = 18 + indice * larguraPagamento;
     if (indice > 0) linha(x - 2, yPagamento + 6.5, x - 2, yPagamento + 16.5);
@@ -1171,7 +1173,9 @@ async function salvarPedido() {
       discount_amount: p.desconto,
       freight: p.frete,
       total: p.total,
-      amount_received: p.valorRecebido,
+      // O campo legado continua preenchido para compatibilidade com o schema,
+      // mas agora representa o total do pedido e não é exibido ao usuário.
+      amount_received: p.total,
       installments: p.parcelas,
       installment_amount: p.valorParcela,
       representative: p.representante || null,
@@ -1735,7 +1739,7 @@ function obterEntradasPedidosFinanceiros() {
       due_date: null,
       category: 'venda',
       description: `Recebimento do pedido ${pedido.id}`,
-      amount: Number(pedido.raw?.amount_received || 0),
+      amount: Number(pedido.raw?.total ?? pedido.raw?.amount_received ?? 0),
       payment_method: null,
       counterparty: pedido.cliente,
       order_id: pedido.dbId,
@@ -1743,7 +1747,7 @@ function obterEntradasPedidosFinanceiros() {
       material_quantity: null,
       material_unit: null,
       material_unit_cost: null,
-      notes: 'Entrada automática baseada no valor recebido informado no pedido.',
+      notes: 'Entrada automática baseada no valor total informado no pedido.',
       created_at: pedido.raw?.created_at || '',
       updated_at: pedido.raw?.updated_at || ''
     }))
@@ -1829,7 +1833,7 @@ function renderLancamentosFinanceiros() {
       const origem = document.createElement('span');
       origem.className = 'finance-origin-badge';
       origem.textContent = 'Pedido';
-      origem.title = 'Entrada automática baseada no valor recebido do pedido';
+      origem.title = 'Entrada automática baseada no valor total do pedido';
       acoes.appendChild(origem);
     } else {
       acoes.appendChild(criarBotaoHistorico('Excluir', 'btn-danger finance-delete-btn', `Excluir lançamento ${lancamento.description}`, () => excluirLancamentoFinanceiro(lancamento.id)));
@@ -2628,7 +2632,7 @@ function editarPedidoHistorico(id) {
     peso: p.peso,
     desconto: p.descontoPct,
     frete: p.frete,
-    valorRecebido: p.valorRecebido,
+    valorTotal: p.total,
     parcelas: p.parcelas,
     espessura: p.espessura,
     pistao: p.pistao,
@@ -2721,7 +2725,7 @@ function novoPedido() {
   document.getElementById('frete').value = 0;
   document.getElementById('data').value = '';
   ['codigoEvento', 'cpfCnpj', 'nascimento', 'cnpj', 'email', 'profissao', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'medidaAltura', 'peso', 'representante', 'localAssinatura', 'observacoesPedido'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('valorRecebido').value = 0;
+  document.getElementById('valorTotal').value = 0;
   document.getElementById('parcelas').value = 1;
   document.getElementById('valorParcela').value = 0;
   document.getElementById('espessura').value = '';
@@ -2768,9 +2772,8 @@ function preencherPedidoTeste() {
   campo('cep', `0${String(1000 + Math.floor(Math.random() * 8999))}-000`);
   campo('medidaAltura', escolherTeste(['1,65 m', '1,70 m', '1,75 m', '1,80 m']));
   campo('peso', escolherTeste(['60 kg', '72 kg', '80 kg', '88 kg']));
-  campo('valorRecebido', valor.toFixed(2));
+  campo('valorTotal', valor.toFixed(2));
   campo('parcelas', parcelas);
-  campo('valorParcela', (valor / parcelas).toFixed(2));
   campo('desconto', escolherTeste([0, 5, 10]));
   campo('frete', escolherTeste([0, 39.9, 59.9]));
   campo('espessura', escolherTeste(['3 cm', '5 cm']));
@@ -2966,7 +2969,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSair').addEventListener('click', sairDaSessao);
   document.getElementById('prospeccaoForm')?.addEventListener('submit', buscarProspecoes);
   ['desconto', 'frete', 'parcelas'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
-  document.getElementById('valorRecebido')?.addEventListener('input', atualizarValorItemPrincipal);
+  document.getElementById('valorTotal')?.addEventListener('input', atualizarValorItemPrincipal);
   renderTotais();
 
   renderTabela();
