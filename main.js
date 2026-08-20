@@ -693,17 +693,16 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
 
   const linhasProduto = itensPdf.slice(0, 5).map((item, indice) => [
     item.descricao.length > 42 ? `${item.descricao.slice(0, 39)}...` : item.descricao,
-    indice === 0 ? fmt(p.valorRecebido) : '',
     indice === 0 ? String(p.parcelas) : '',
     fmt(item.subtotal)
   ]);
-  while (linhasProduto.length < 5) linhasProduto.push(['', '', '', '']);
+  while (linhasProduto.length < 5) linhasProduto.push(['', '', '']);
   doc.autoTable({
     startY: yInfo, margin: { left: 98, right: 14 }, tableWidth: 98,
-    head: [['PRODUTO', 'VALOR RECEBIDO', 'Nº PARCELAS', 'VALOR']], body: linhasProduto,
+    head: [['PRODUTO', 'Nº PARCELAS', 'VALOR']], body: linhasProduto,
     theme: 'grid', styles: { fontSize: 6.7, cellPadding: 1.5, lineColor: [25, 31, 42], lineWidth: .3, valign: 'middle' },
     headStyles: { fillColor: [255, 255, 255], textColor: [18, 24, 35], fontStyle: 'bold', halign: 'center' },
-    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 22, halign: 'center' }, 2: { cellWidth: 17, halign: 'center' }, 3: { cellWidth: 19, halign: 'right' } }
+    columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 20, halign: 'center' }, 2: { cellWidth: 28, halign: 'right' } }
   });
 
   const yOpcoes = 205;
