@@ -93,7 +93,6 @@ export type Database = {
         Row: {
           created_at: string
           foam_line: string
-          frame_finish: string
           id: string
           manufacturing_notes: string | null
           order_id: string
@@ -109,7 +108,6 @@ export type Database = {
         Insert: {
           created_at?: string
           foam_line: string
-          frame_finish?: string
           id?: string
           manufacturing_notes?: string | null
           order_id: string
@@ -125,7 +123,6 @@ export type Database = {
         Update: {
           created_at?: string
           foam_line?: string
-          frame_finish?: string
           id?: string
           manufacturing_notes?: string | null
           order_id?: string

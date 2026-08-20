@@ -154,7 +154,7 @@ function nomeOpt(id, list) {
   return item ? item.nome : id;
 }
 
-const CAMPOS_FABRICACAO = ['espessura', 'pistao', 'mSela', 'linhaSoft', 'corAssento', 'corEstrutura'];
+const CAMPOS_FABRICACAO = ['espessura', 'pistao', 'mSela', 'linhaSoft', 'corAssento'];
 
 function especificacoesConfiguradas() {
   const valor = id => document.getElementById(id)?.value || '';
@@ -163,8 +163,7 @@ function especificacoesConfiguradas() {
     pistao: valor('pistao') || 'Não informado',
     sela: 'Sim',
     tamanhoSela: valor('linhaSoft') || 'Padrão',
-    corAssento: valor('corAssento') || 'Preto',
-    corEstrutura: valor('corEstrutura') || 'Cromado'
+    corAssento: valor('corAssento') || 'Preto'
   };
 }
 
@@ -294,7 +293,7 @@ function limparGrupo3D(group) {
 }
 
 function cor3D(nome, corPadrao) {
-  return ({ 'Marrom': 0x633b25, 'Preto': 0x17191f, 'Caramelo': 0xb96f3c, 'Verde Musgo': 0x445e43, 'Azul Marinho': 0x162b52, 'Creme': 0xe2d1b1, 'Vermelho': 0x9f3030, 'Grafite': 0x41454f, 'Madeira Natural': 0xa96b3e, 'Branco': 0xe8ebef, 'Cromado': 0xbcc5cf, 'Dourado': 0xa98232, 'Carvalho': 0x7c542f })[nome] || corPadrao;
+  return ({ 'Marrom': 0x633b25, 'Preto': 0x17191f, 'Caramelo': 0xb96f3c, 'Verde Musgo': 0x445e43, 'Azul Marinho': 0x162b52, 'Creme': 0xe2d1b1, 'Vermelho': 0x9f3030, 'Grafite': 0x41454f, 'Madeira Natural': 0xa96b3e, 'Branco': 0xe8ebef, 'Dourado': 0xa98232, 'Carvalho': 0x7c542f })[nome] || corPadrao;
 }
 
 function atualizarMocho3DLegadoDesativado() {
@@ -307,7 +306,6 @@ function atualizarMocho3DLegadoDesativado() {
   const alturaBase = Number(document.getElementById('baseHeight').value);
   const acessorios = getCheckedAcessorios();
   const corAssento = document.getElementById('corAssento').value;
-  const corEstrutura = document.getElementById('corEstrutura').value;
   const temRodizios = document.getElementById('opcao-rodinhas').value === '1' || acessorios.includes('rodizios');
   const temLombar = document.getElementById('opcao-lombar').value === '1';
   const escala = ({ P: .83, M: .95, G: 1.06, GG: 1.16 })[tamanho] || 1;
@@ -322,7 +320,7 @@ function atualizarMocho3DLegadoDesativado() {
   mocho3D.seat.material.color.setHex(cor3D(corAssento, 0x633b25));
   Object.assign(mocho3D.seat.material, acabamento);
   mocho3D.seatEdge.material.color.setHex(cor3D(corAssento, 0x20242e));
-  const estrutMat = new THREE.MeshStandardMaterial({ color: cor3D(corEstrutura, 0x9ea9b8), metalness: ['metal', 'inox', 'giro'].includes(baseTipo) ? .85 : .18, roughness: baseTipo === 'madeira' ? .66 : .25 });
+  const estrutMat = new THREE.MeshStandardMaterial({ color: 0x9ea9b8, metalness: ['metal', 'inox', 'giro'].includes(baseTipo) ? .85 : .18, roughness: baseTipo === 'madeira' ? .66 : .25 });
   mocho3D.column.material = estrutMat;
 
   limparGrupo3D(mocho3D.back); limparGrupo3D(mocho3D.base); limparGrupo3D(mocho3D.extras);
@@ -363,7 +361,7 @@ function atualizarMocho3D() {
   const tamanhoSela = especificacoes.tamanhoSela;
   const escalaSela = tamanhoSela === 'Soft Plus' ? 1.24 : tamanhoSela === 'Soft' ? 1.12 : 1;
   const corAssento = cor3D(especificacoes.corAssento, 0x41454f);
-  const estrutura = new THREE.MeshStandardMaterial({ color: cor3D(especificacoes.corEstrutura, especificacoes.pistao === 'M' ? 0xaeb7c3 : 0x4a5261), metalness: .72, roughness: .25 });
+  const estrutura = new THREE.MeshStandardMaterial({ color: especificacoes.pistao === 'M' ? 0xaeb7c3 : 0x4a5261, metalness: .72, roughness: .25 });
 
   if (mocho3D.formatoSela !== ehSela) {
     mocho3D.seat.geometry.dispose();
@@ -422,12 +420,11 @@ function adicionarItemConfigurado() {
     `Pistão: ${especificacoes.pistao}`,
     `M. sela: ${especificacoes.sela}`,
     `Tamanho da sela: ${especificacoes.tamanhoSela}`,
-    `Cor assento: ${especificacoes.corAssento}`,
-    'Estrutura: metal cromado prata'
+    `Cor assento: ${especificacoes.corAssento}`
   ];
   if (obs) detalhes.push(`Obs: ${obs}`);
   const unitario = calcularPrecoUnitario();
-  const configuracao = `Mocho sela ${especificacoes.tamanhoSela} · Linha de espuma ${especificacoes.espuma} · Pistão ${especificacoes.pistao} · Assento ${especificacoes.corAssento} · Estrutura metal cromado prata`;
+  const configuracao = `Mocho sela ${especificacoes.tamanhoSela} · Linha de espuma ${especificacoes.espuma} · Pistão ${especificacoes.pistao} · Assento ${especificacoes.corAssento}`;
   itens.push({
     id: ++itemCounter,
     descricao: 'Mocho Sela',
@@ -458,6 +455,16 @@ function fmt(v) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2
   }).format(valor);
+}
+
+function removerDadosEstrutura(valor) {
+  return String(valor ?? '')
+    .replace(/(?:^|\s*[;|·]\s*)estrutura\s*:?\s*metal\s+cromado\s+prata\s*(?=[;|·]|$)/gi, '')
+    .replace(/\bmetal\s+cromado\s+prata\b/gi, '')
+    .replace(/\s*[;|·]\s*(?=[;|·]|$)/g, '')
+    .replace(/^[\s;|·]+|[\s;|·]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 function calcTotais() {
@@ -586,11 +593,9 @@ function dadosPedido() {
     email: campo('email'), profissao: campo('profissao'), rua: campo('rua'), numero: campo('numero'),
     complemento: campo('complemento'), bairro: campo('bairro'), cidade: campo('cidade'), uf: campo('uf'), cep: campo('cep'),
     medidaAltura: campo('medidaAltura'), peso: campo('peso'),
-    // Mantido apenas para compatibilidade com registros antigos do banco.
-    // A interface e o PDF exibem exclusivamente o total do pedido.
     valorRecebido: total,
     parcelas, valorParcela: Number((total / parcelas).toFixed(2)),
-    espessura: campo('espessura'), pistao: campo('pistao'), corAssento: campo('corAssento'), corEstrutura: campo('corEstrutura'), representante: campo('representante'), localAssinatura: campo('localAssinatura'),
+    espessura: campo('espessura'), pistao: campo('pistao'), corAssento: campo('corAssento'), representante: campo('representante'), localAssinatura: campo('localAssinatura'),
     mSela: true, tamanhoSela: campo('linhaSoft'), observacoesPedido: campo('observacoesPedido')
   };
 }
@@ -699,14 +704,13 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   caixa(108, 145, 88, 11, 'CNPJ', p.cnpj);
 
   const yInfo = 159;
-  doc.rect(14, yInfo, 80, 45);
+  doc.rect(14, yInfo, 80, 40);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.text('INFORMAÇÕES ADICIONAIS', 18, yInfo + 6);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
   doc.text(`ALTURA: ${texto(p.medidaAltura, '________________')}`, 22, yInfo + 14);
   doc.text(`PESO: ${texto(p.peso, '________________')}`, 22, yInfo + 22);
   doc.text(`ASSENTO: ${texto(p.corAssento, '________________')}`, 22, yInfo + 30);
-  doc.text('ESTRUTURA: METAL CROMADO PRATA', 22, yInfo + 36);
-  check(22, yInfo + 43, 'MOCHO SELA', true);
+  check(22, yInfo + 37, 'MOCHO SELA', true);
 
   const linhasProduto = itensPdf.slice(0, 5).map((item, indice) => [
     item.descricao.length > 42 ? `${item.descricao.slice(0, 39)}...` : item.descricao,
@@ -732,9 +736,9 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   check(19, yOpcoes + 34, 'SELA SOFT', p.tamanhoSela === 'Soft');
   check(49, yOpcoes + 34, 'SELA SOFT PLUS', p.tamanhoSela === 'Soft Plus');
 
-  const obsItens = itensPdf.map(item => item.detalhes?.match(/Obs: (.*?)(; |$)/)?.[1]).filter(Boolean);
-  const configuracoesItens = itensPdf.map((item, indice) => item.configuracao ? `Item ${indice + 1}: ${item.configuracao}` : '').filter(Boolean);
-  const observacoes = [p.observacoesPedido, ...configuracoesItens, ...obsItens, itensPdf.length > 5 ? `Mais ${itensPdf.length - 5} item(ns) no pedido.` : ''].filter(Boolean).join(' | ');
+  const obsItens = itensPdf.map(item => removerDadosEstrutura(item.detalhes)?.match(/Obs: (.*?)(; |$)/)?.[1]).filter(Boolean);
+  const configuracoesItens = itensPdf.map((item, indice) => item.configuracao ? `Item ${indice + 1}: ${removerDadosEstrutura(item.configuracao)}` : '').filter(Boolean);
+  const observacoes = [removerDadosEstrutura(p.observacoesPedido), ...configuracoesItens, ...obsItens, itensPdf.length > 5 ? `Mais ${itensPdf.length - 5} item(ns) no pedido.` : ''].filter(Boolean).join(' | ');
   doc.rect(98, yOpcoes, 98, 40);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('Observações:', 102, yOpcoes + 7);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
@@ -1212,7 +1216,6 @@ async function salvarPedido() {
       saddle_model: 'Mocho sela',
       saddle_size: p.tamanhoSela || 'Padrão',
       seat_color: p.corAssento || 'Preto',
-      frame_finish: 'Metal cromado prata',
       unit_price: item.unitario,
       manufacturing_notes: item.detalhes
     }));
@@ -1302,7 +1305,6 @@ function mapearPedido(row, itensPorPedido) {
     sela: item.saddle_model || '—',
     linha: item.saddle_size || '—',
     corAssento: pedidoSnapshot.corAssento || item.seat_color || '—',
-    corEstrutura: pedidoSnapshot.corEstrutura || item.frame_finish || '—',
     itens: itensPedido.reduce((total, atual) => total + Number(atual.quantity || 0), 0),
     raw: row,
     rawItems: itensPedido
@@ -1318,7 +1320,6 @@ function mapearPedido(row, itensPorPedido) {
     pedidoMapeado.espuma,
     pedidoMapeado.pistao,
     pedidoMapeado.corAssento,
-    pedidoMapeado.corEstrutura,
     pedidoMapeado.raw?.customer_snapshot?.cpf,
     pedidoMapeado.raw?.customer_snapshot?.cnpj,
     pedidoMapeado.raw?.customer_snapshot?.event_code,
@@ -1366,7 +1367,7 @@ async function carregarDadosRemotos() {
     if (ids.length) {
       const { data, error } = await window.appSupabase
         .from('order_items')
-        .select('id, order_id, product_name, quantity, foam_line, piston, saddle_model, saddle_size, seat_color, frame_finish, unit_price, manufacturing_notes')
+        .select('id, order_id, product_name, quantity, foam_line, piston, saddle_model, saddle_size, seat_color, unit_price, manufacturing_notes')
         .in('order_id', ids);
       if (error) throw error;
       itensBanco = data || [];
@@ -2493,6 +2494,8 @@ async function salvarProspect(resultado, cnpjInformado = '') {
 
 function construirContextoPdfHistorico(pedido) {
   const snapshot = pedido.raw?.order_snapshot || {};
+  const snapshotSemEstrutura = { ...snapshot };
+  delete snapshotSemEstrutura.corEstrutura;
   const clienteSnapshot = pedido.raw?.customer_snapshot || {};
   const itensSnapshot = Array.isArray(snapshot.items) ? snapshot.items : [];
   const itensFonte = itensSnapshot.length ? itensSnapshot : (pedido.rawItems || []);
@@ -2502,15 +2505,15 @@ function construirContextoPdfHistorico(pedido) {
     return {
       id: item.id || indice + 1,
       descricao: item.descricao || item.product_name || 'Mocho Sela',
-      detalhes: item.detalhes || item.manufacturing_notes || '',
-      configuracao: item.configuracao || '',
+      detalhes: removerDadosEstrutura(item.detalhes || item.manufacturing_notes || ''),
+      configuracao: removerDadosEstrutura(item.configuracao || ''),
       qtd: quantidade,
       unitario,
       subtotal: Number(item.subtotal ?? unitario * quantidade)
     };
   });
   const p = {
-    ...snapshot,
+    ...snapshotSemEstrutura,
     pedido: snapshot.pedido || pedido.id,
     cliente: snapshot.cliente || clienteSnapshot.name || pedido.cliente || '',
     telefone: snapshot.telefone || clienteSnapshot.phone || pedido.telefone || '',
@@ -2541,7 +2544,6 @@ function construirContextoPdfHistorico(pedido) {
     espessura: snapshot.espessura ?? pedido.espuma ?? '',
     pistao: snapshot.pistao ?? pedido.pistao ?? '',
     corAssento: snapshot.corAssento ?? pedido.corAssento ?? '',
-    corEstrutura: snapshot.corEstrutura ?? pedido.corEstrutura ?? 'Cromado',
     representante: snapshot.representante ?? pedido.raw?.representative ?? '',
     localAssinatura: snapshot.localAssinatura ?? pedido.raw?.signature_city ?? '',
     mSela: snapshot.mSela ?? true,
@@ -2578,7 +2580,7 @@ function abrirHistorico(id) {
     ['Código', pedido.id], ['Empresa / clínica', pedido.cliente], ['Nome', pedido.nome], ['Telefone', pedido.telefone], ['E-mail', pedido.email], ['Data', pedido.data], ['Itens', `${pedido.itens} ${pedido.itens === 1 ? 'item' : 'itens'}`]
   ].map(([rotulo, valor]) => `<div class="history-detail"><small>${rotulo}</small><strong>${escapeHtml(valor || '—')}</strong></div>`).join('');
   document.getElementById('historyDialogFabricacao').innerHTML = [
-    ['Espuma', pedido.espuma], ['Pistão', pedido.pistao], ['Modelo sela', pedido.sela], ['Linha de espuma', pedido.linha], ['Cor do assento', pedido.corAssento], ['Cor da estrutura', pedido.corEstrutura]
+    ['Espuma', pedido.espuma], ['Pistão', pedido.pistao], ['Modelo sela', pedido.sela], ['Linha de espuma', pedido.linha], ['Cor do assento', pedido.corAssento]
   ].map(([rotulo, valor]) => `<div class="history-detail"><small>${rotulo}</small><strong>${escapeHtml(valor || '—')}</strong></div>`).join('');
   document.getElementById('historyDialog').showModal();
 }
@@ -2637,7 +2639,6 @@ function editarPedidoHistorico(id) {
     espessura: p.espessura,
     pistao: p.pistao,
     corAssento: p.corAssento || 'Preto',
-    corEstrutura: p.corEstrutura || 'Cromado',
     representante: p.representante,
     localAssinatura: p.localAssinatura,
     linhaSoft: p.tamanhoSela === 'Padrão' ? '' : p.tamanhoSela,
@@ -2733,7 +2734,6 @@ function novoPedido() {
   document.getElementById('mSela').value = '1';
   document.getElementById('linhaSoft').value = '';
   document.getElementById('corAssento').value = 'Preto';
-  document.getElementById('corEstrutura').value = 'Cromado';
   limparConfig();
   renderTabela();
   const btnSalvar = document.getElementById('btnSalvar');

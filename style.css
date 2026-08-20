@@ -428,8 +428,6 @@
     width: 19px; height: 19px; display: grid; place-items: center; flex: 0 0 auto;
     border-radius: 50%; color: #fff; background: var(--red); font-size: .78rem; line-height: 1;
   }
-  .estrutura-metalica { border-color: rgba(44,83,188,.3); background: linear-gradient(135deg, rgba(196,205,217,.46), rgba(44,83,188,.08)); }
-  .estrutura-metalica span { background: #8390a3; }
   input, select, textarea {
     width: 100%;
     padding: 11px 12px;
