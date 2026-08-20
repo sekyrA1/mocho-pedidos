@@ -726,15 +726,36 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   doc.text(linhasObs, 102, yOpcoes + 14);
   linha(102, yOpcoes + 34, 190, yOpcoes + 34); linha(102, yOpcoes + 38, 190, yOpcoes + 38);
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
-  doc.text(`TOTAL DO PEDIDO: ${fmt(p.total)}`, 194, 251, { align: 'right' });
+  // A condição de pagamento fica em uma seção própria para não confundir
+  // valor recebido, total do pedido e valor individual das parcelas.
+  const yPagamento = 247;
+  doc.setFillColor(247, 248, 253); doc.setDrawColor(25, 31, 42); doc.setLineWidth(.35);
+  doc.rect(14, yPagamento, 182, 18, 'FD');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(35, 40, 48);
+  doc.text('CONDIÇÕES DE PAGAMENTO', 18, yPagamento + 4.5);
+  const resumoPagamento = [
+    ['TOTAL DO PEDIDO', fmt(p.total)],
+    ['VALOR RECEBIDO', fmt(p.valorRecebido)],
+    ['Nº DE PARCELAS', String(Math.max(1, Number(p.parcelas) || 1))],
+    ['VALOR DA PARCELA', fmt(valorParcela)]
+  ];
+  const larguraPagamento = 43.5;
+  resumoPagamento.forEach(([rotulo, valor], indice) => {
+    const x = 18 + indice * larguraPagamento;
+    if (indice > 0) linha(x - 2, yPagamento + 6.5, x - 2, yPagamento + 16.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.7); doc.setTextColor(94, 99, 126);
+    doc.text(rotulo, x, yPagamento + 8.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.2); doc.setTextColor(18, 24, 35);
+    doc.text(valor, x, yPagamento + 14.5);
+  });
+
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-  doc.text(`Local: ${texto(p.localAssinatura, '________________________')}   ${dataBrasileira(p.data)}`, 98, 260);
-  linha(18, 275, 90, 275); linha(118, 275, 190, 275);
+  doc.text(`Local: ${texto(p.localAssinatura, '________________________')}   ${dataBrasileira(p.data)}`, 98, 270);
+  linha(18, 279, 90, 279); linha(118, 279, 190, 279);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-  doc.text('REPRESENTANTE', 54, 280, { align: 'center' });
-  doc.text('ASS. CLIENTE', 154, 280, { align: 'center' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text(texto(p.representante), 54, 272, { align: 'center' });
+  doc.text('REPRESENTANTE', 54, 284, { align: 'center' });
+  doc.text('ASS. CLIENTE', 154, 284, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text(texto(p.representante), 54, 276, { align: 'center' });
 
   const filename = `${nomeArquivo(p)}.pdf`;
   if (modo === 'preview') {
