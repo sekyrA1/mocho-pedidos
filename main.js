@@ -526,7 +526,8 @@ function normalizarEntrada() {
   const campo = document.getElementById('valorEntrada');
   if (!campo) return;
   const total = Math.max(0, Number(calcTotais().total) || 0);
-  const valor = Math.min(Math.max(0, lerValorMonetario(campo.value)), total);
+  const valorInformado = Math.max(0, lerValorMonetario(campo.value));
+  const valor = total > 0 ? Math.min(valorInformado, total) : valorInformado;
   campo.value = valor.toFixed(2).replace('.', ',');
   renderTotais();
 }
@@ -606,7 +607,7 @@ function renderTotais() {
   if (parcelasCampo && String(parcelasCampo.value) !== String(pagamento.parcelas)) parcelasCampo.value = pagamento.parcelas;
   atualizarEstadoBotoesParcelas();
   const entradaInformada = lerValorMonetario(entradaCampo?.value);
-  if (entradaCampo && document.activeElement !== entradaCampo && (entradaInformada < 0 || entradaInformada > pagamento.entrada)) entradaCampo.value = pagamento.entrada.toFixed(2);
+  if (entradaCampo && total > 0 && document.activeElement !== entradaCampo && (entradaInformada < 0 || entradaInformada > pagamento.entrada)) entradaCampo.value = pagamento.entrada.toFixed(2);
   if (saldoParceladoCampo) saldoParceladoCampo.value = pagamento.saldoParcelado.toFixed(2);
   if (valorParcelaCampo) valorParcelaCampo.value = pagamento.valorParcela.toFixed(2);
   const tfoot = document.getElementById('tfootItens');
