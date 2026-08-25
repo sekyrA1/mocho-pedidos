@@ -457,6 +457,16 @@ function fmt(v) {
   }).format(valor);
 }
 
+function lerValorMonetario(valor) {
+  const texto = String(valor ?? '').trim().replace(/\s/g, '');
+  if (!texto) return 0;
+  const normalizado = texto.includes(',')
+    ? texto.replace(/\./g, '').replace(',', '.')
+    : texto;
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
 function removerDadosEstrutura(valor) {
   return String(valor ?? '')
     .replace(/(?:^|\s*[;|·]\s*)estrutura\s*:?\s*metal\s+cromado\s+prata\s*(?=[;|·]|$)/gi, '')
@@ -478,7 +488,7 @@ function calcTotais() {
 
 function calcularPagamento(total) {
   const totalSeguro = Math.max(0, Number(total) || 0);
-  const entradaInformada = Math.max(0, Number(document.getElementById('valorEntrada')?.value) || 0);
+  const entradaInformada = Math.max(0, lerValorMonetario(document.getElementById('valorEntrada')?.value));
   const entrada = Math.min(entradaInformada, totalSeguro);
   const saldoParcelado = Number(Math.max(0, totalSeguro - entrada).toFixed(2));
   const parcelas = Math.max(1, parseInt(document.getElementById('parcelas')?.value, 10) || 1);
@@ -510,6 +520,15 @@ function ajustarParcelas(delta) {
   const valorAtual = Number.isFinite(atual) ? atual : minimo;
   campo.value = Math.max(minimo, valorAtual + delta);
   campo.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function normalizarEntrada() {
+  const campo = document.getElementById('valorEntrada');
+  if (!campo) return;
+  const total = Math.max(0, Number(calcTotais().total) || 0);
+  const valor = Math.min(Math.max(0, lerValorMonetario(campo.value)), total);
+  campo.value = valor.toFixed(2).replace('.', ',');
+  renderTotais();
 }
 
 function renderTabela() {
@@ -586,8 +605,8 @@ function renderTotais() {
   const pagamento = calcularPagamento(total);
   if (parcelasCampo && String(parcelasCampo.value) !== String(pagamento.parcelas)) parcelasCampo.value = pagamento.parcelas;
   atualizarEstadoBotoesParcelas();
-  const entradaInformada = Number(entradaCampo?.value);
-  if (entradaCampo && (!Number.isFinite(entradaInformada) || entradaInformada < 0 || entradaInformada > pagamento.entrada)) entradaCampo.value = pagamento.entrada.toFixed(2);
+  const entradaInformada = lerValorMonetario(entradaCampo?.value);
+  if (entradaCampo && document.activeElement !== entradaCampo && (entradaInformada < 0 || entradaInformada > pagamento.entrada)) entradaCampo.value = pagamento.entrada.toFixed(2);
   if (saldoParceladoCampo) saldoParceladoCampo.value = pagamento.saldoParcelado.toFixed(2);
   if (valorParcelaCampo) valorParcelaCampo.value = pagamento.valorParcela.toFixed(2);
   const tfoot = document.getElementById('tfootItens');
@@ -3031,6 +3050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     botao.addEventListener('click', () => ajustarParcelas(botao.dataset.stepperAction === 'increase' ? 1 : -1));
   });
   document.getElementById('parcelas')?.addEventListener('input', atualizarEstadoBotoesParcelas);
+  document.getElementById('valorEntrada')?.addEventListener('blur', normalizarEntrada);
   document.getElementById('valorTotal')?.addEventListener('input', atualizarValorItemPrincipal);
   renderTotais();
 

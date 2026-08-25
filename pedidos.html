@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=duo-ui-20260825">
+<link rel="stylesheet" href="style.css?v=duo-ui-20260825-mobilefix">
 </head>
 <body class="dashboard-dark">
 
@@ -162,7 +162,7 @@
         <div class="section-label" id="dadosFabricacao">Fabricação, pagamento e assinaturas</div>
         <div class="grid cols-3">
           <div class="field"><label for="valorTotal">Valor total do pedido (R$)</label><input id="valorTotal" type="number" min="0" step="0.01" value="0"><small class="field-hint">Com um item, define o total e recalcula as parcelas.</small></div>
-          <div class="field"><label for="valorEntrada">Entrada (R$)</label><input id="valorEntrada" type="number" min="0" step="0.01" value="0"><small class="field-hint">Abatida do saldo antes de dividir.</small></div>
+          <div class="field"><label for="valorEntrada">Entrada (R$)</label><input id="valorEntrada" type="text" value="0" inputmode="decimal" autocomplete="off" aria-describedby="valorEntradaHint"><small class="field-hint" id="valorEntradaHint">Digite o valor usando vírgula ou ponto decimal.</small></div>
           <div class="field parcelas-field">
             <label for="parcelas">Nº de parcelas</label>
             <div class="number-stepper" data-stepper="parcelas">
@@ -478,6 +478,6 @@
 <script src="supabase-client.js?v=dashboard-20260816"></script>
 <script src="auth-guard.js?v=dashboard-20260816"></script>
 <script src="theme.js?v=light-mode-20260816"></script>
-<script src="main.js?v=duo-ui-20260825"></script>
+<script src="main.js?v=duo-ui-20260825-mobilefix"></script>
 </body>
 </html>
