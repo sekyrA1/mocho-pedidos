@@ -178,4 +178,19 @@ document.addEventListener('DOMContentLoaded', () => {
   atualizarStatusCarrossel();
   iniciarAutoplay();
 
+  const tiltCard = document.querySelector('[data-tilt-card]');
+  if (tiltCard && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    tiltCard.addEventListener('pointermove', event => {
+      const bounds = tiltCard.getBoundingClientRect();
+      const x = (event.clientX - bounds.left) / bounds.width - .5;
+      const y = (event.clientY - bounds.top) / bounds.height - .5;
+      tiltCard.style.setProperty('--tilt-x', `${(y * -3).toFixed(2)}deg`);
+      tiltCard.style.setProperty('--tilt-y', `${(x * 4).toFixed(2)}deg`);
+    });
+    tiltCard.addEventListener('pointerleave', () => {
+      tiltCard.style.setProperty('--tilt-x', '0deg');
+      tiltCard.style.setProperty('--tilt-y', '0deg');
+    });
+  }
+
 });

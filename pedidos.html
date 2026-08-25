@@ -15,13 +15,14 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" integrity="sha384-qOkzR5Ke/XkQxuGVJ9hpFEpDlcoLtWwVYhnJf06cLIZa2vaIptSqaubivErzmD5O" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="style.css?v=finance-orders-20260816">
+<link rel="stylesheet" href="style.css?v=duo-ui-20260825">
 </head>
 <body class="dashboard-dark">
 
 <div class="topbar">
   <a href="index.html" class="brand">
     <img class="brand-logo-img" src="assets/logo-duo-equilibrium.png" alt="Duo Equilibrium - Soluções Ergonômicas">
+    <span class="brand-meta"><strong>Workspace</strong><small>Operação comercial</small></span>
   </a>
 
   <nav class="nav-tabs">
@@ -30,6 +31,7 @@
   </nav>
 
   <div class="topbar-badges">
+    <span class="workspace-pulse"><i></i> Sincronizado</span>
     <button class="theme-toggle" type="button" data-theme-toggle aria-label="Ativar modo claro" title="Ativar modo claro" aria-pressed="true">
       <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
       <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.1A8.5 8.5 0 0 1 8.9 3.5 8.6 8.6 0 1 0 20.5 15.1Z"></path></svg>
@@ -161,7 +163,15 @@
         <div class="grid cols-3">
           <div class="field"><label for="valorTotal">Valor total do pedido (R$)</label><input id="valorTotal" type="number" min="0" step="0.01" value="0"><small class="field-hint">Com um item, define o total e recalcula as parcelas.</small></div>
           <div class="field"><label for="valorEntrada">Entrada (R$)</label><input id="valorEntrada" type="number" min="0" step="0.01" value="0"><small class="field-hint">Abatida do saldo antes de dividir.</small></div>
-          <div class="field"><label for="parcelas">Nº de parcelas</label><input id="parcelas" type="number" min="1" step="1" value="1"></div>
+          <div class="field parcelas-field">
+            <label for="parcelas">Nº de parcelas</label>
+            <div class="number-stepper" data-stepper="parcelas">
+              <button class="stepper-button" type="button" data-stepper-action="decrease" aria-label="Diminuir número de parcelas" title="Diminuir parcelas">−</button>
+              <input id="parcelas" type="number" min="1" step="1" value="1" inputmode="numeric" aria-describedby="parcelasHint">
+              <button class="stepper-button" type="button" data-stepper-action="increase" aria-label="Aumentar número de parcelas" title="Aumentar parcelas">＋</button>
+            </div>
+            <small class="field-hint" id="parcelasHint">Use − e ＋ para ajustar sem depender do teclado numérico.</small>
+          </div>
           <div class="field"><label for="saldoParcelado">Saldo para parcelar (R$)</label><input id="saldoParcelado" type="number" min="0" step="0.01" value="0.00" readonly aria-readonly="true"><small class="field-hint">Total menos a entrada.</small></div>
           <div class="field"><label for="valorParcela">Valor da parcela (R$)</label><input id="valorParcela" type="number" min="0" step="0.01" value="0.00" readonly aria-readonly="true"><small class="field-hint">Saldo para parcelar ÷ parcelas.</small></div>
           <div class="field"><label for="espessura">Linha da espuma</label><select id="espessura"><option value="">Selecione a linha</option><option value="3 cm">Linha de espuma 3 cm</option><option value="5 cm">Linha de espuma 5 cm</option></select></div>
@@ -468,6 +478,6 @@
 <script src="supabase-client.js?v=dashboard-20260816"></script>
 <script src="auth-guard.js?v=dashboard-20260816"></script>
 <script src="theme.js?v=light-mode-20260816"></script>
-<script src="main.js?v=finance-orders-20260816"></script>
+<script src="main.js?v=duo-ui-20260825"></script>
 </body>
 </html>

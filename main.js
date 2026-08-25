@@ -490,6 +490,28 @@ function calcularPagamento(total) {
   };
 }
 
+function atualizarEstadoBotoesParcelas() {
+  const campo = document.getElementById('parcelas');
+  const stepper = document.querySelector('[data-stepper="parcelas"]');
+  if (!campo || !stepper) return;
+  const minimo = Number(campo.min) || 1;
+  const valor = Math.max(minimo, parseInt(campo.value, 10) || minimo);
+  const diminuir = stepper.querySelector('[data-stepper-action="decrease"]');
+  const aumentar = stepper.querySelector('[data-stepper-action="increase"]');
+  if (diminuir) diminuir.disabled = valor <= minimo;
+  if (aumentar) aumentar.disabled = false;
+}
+
+function ajustarParcelas(delta) {
+  const campo = document.getElementById('parcelas');
+  if (!campo) return;
+  const minimo = Number(campo.min) || 1;
+  const atual = parseInt(campo.value, 10);
+  const valorAtual = Number.isFinite(atual) ? atual : minimo;
+  campo.value = Math.max(minimo, valorAtual + delta);
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function renderTabela() {
   const tbody = document.getElementById('tbodyItens');
   const wrap = document.getElementById('tabelaWrap');
@@ -563,6 +585,7 @@ function renderTotais() {
   const valorParcelaCampo = document.getElementById('valorParcela');
   const pagamento = calcularPagamento(total);
   if (parcelasCampo && String(parcelasCampo.value) !== String(pagamento.parcelas)) parcelasCampo.value = pagamento.parcelas;
+  atualizarEstadoBotoesParcelas();
   const entradaInformada = Number(entradaCampo?.value);
   if (entradaCampo && (!Number.isFinite(entradaInformada) || entradaInformada < 0 || entradaInformada > pagamento.entrada)) entradaCampo.value = pagamento.entrada.toFixed(2);
   if (saldoParceladoCampo) saldoParceladoCampo.value = pagamento.saldoParcelado.toFixed(2);
@@ -3004,6 +3027,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSair').addEventListener('click', sairDaSessao);
   document.getElementById('prospeccaoForm')?.addEventListener('submit', buscarProspecoes);
   ['desconto', 'frete', 'parcelas', 'valorEntrada'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
+  document.querySelector('[data-stepper="parcelas"]')?.querySelectorAll('[data-stepper-action]').forEach(botao => {
+    botao.addEventListener('click', () => ajustarParcelas(botao.dataset.stepperAction === 'increase' ? 1 : -1));
+  });
+  document.getElementById('parcelas')?.addEventListener('input', atualizarEstadoBotoesParcelas);
   document.getElementById('valorTotal')?.addEventListener('input', atualizarValorItemPrincipal);
   renderTotais();
 
