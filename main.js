@@ -476,6 +476,20 @@ function calcTotais() {
   return { subtotal, descontoPct, desconto, frete, total };
 }
 
+function calcularPagamento(total) {
+  const totalSeguro = Math.max(0, Number(total) || 0);
+  const entradaInformada = Math.max(0, Number(document.getElementById('valorEntrada')?.value) || 0);
+  const entrada = Math.min(entradaInformada, totalSeguro);
+  const saldoParcelado = Number(Math.max(0, totalSeguro - entrada).toFixed(2));
+  const parcelas = Math.max(1, parseInt(document.getElementById('parcelas')?.value, 10) || 1);
+  return {
+    entrada: Number(entrada.toFixed(2)),
+    saldoParcelado,
+    parcelas,
+    valorParcela: Number((saldoParcelado / parcelas).toFixed(2))
+  };
+}
+
 function renderTabela() {
   const tbody = document.getElementById('tbodyItens');
   const wrap = document.getElementById('tabelaWrap');
@@ -544,10 +558,15 @@ function renderTabela() {
 function renderTotais() {
   const { subtotal, descontoPct, desconto, frete, total } = calcTotais();
   const parcelasCampo = document.getElementById('parcelas');
+  const entradaCampo = document.getElementById('valorEntrada');
+  const saldoParceladoCampo = document.getElementById('saldoParcelado');
   const valorParcelaCampo = document.getElementById('valorParcela');
-  const parcelas = Math.max(1, parseInt(parcelasCampo?.value, 10) || 1);
-  if (parcelasCampo && String(parcelasCampo.value) !== String(parcelas)) parcelasCampo.value = parcelas;
-  if (valorParcelaCampo) valorParcelaCampo.value = (total / parcelas).toFixed(2);
+  const pagamento = calcularPagamento(total);
+  if (parcelasCampo && String(parcelasCampo.value) !== String(pagamento.parcelas)) parcelasCampo.value = pagamento.parcelas;
+  const entradaInformada = Number(entradaCampo?.value);
+  if (entradaCampo && (!Number.isFinite(entradaInformada) || entradaInformada < 0 || entradaInformada > pagamento.entrada)) entradaCampo.value = pagamento.entrada.toFixed(2);
+  if (saldoParceladoCampo) saldoParceladoCampo.value = pagamento.saldoParcelado.toFixed(2);
+  if (valorParcelaCampo) valorParcelaCampo.value = pagamento.valorParcela.toFixed(2);
   const tfoot = document.getElementById('tfootItens');
   tfoot.innerHTML = `
     <tr><td colspan="3" style="text-align:right;">Subtotal</td><td style="text-align:right;">—</td><td style="text-align:right;">${fmt(subtotal)}</td><td></td></tr>
@@ -586,7 +605,7 @@ function dadosPedido() {
   const telefone = campo('telefone');
   const data = document.getElementById('data').value || new Date().toISOString().split('T')[0];
   const { subtotal, descontoPct, desconto, frete, total } = calcTotais();
-  const parcelas = Math.max(1, parseInt(campo('parcelas'), 10) || 1);
+  const pagamento = calcularPagamento(total);
   return {
     pedido, cliente, telefone, data, subtotal, descontoPct, desconto, frete, total,
     codigoEvento: campo('codigoEvento'), cpf: campo('cpfCnpj'), nascimento: campo('nascimento'), cnpj: campo('cnpj'),
@@ -594,7 +613,8 @@ function dadosPedido() {
     complemento: campo('complemento'), bairro: campo('bairro'), cidade: campo('cidade'), uf: campo('uf'), cep: campo('cep'),
     medidaAltura: campo('medidaAltura'), peso: campo('peso'),
     valorRecebido: total,
-    parcelas, valorParcela: Number((total / parcelas).toFixed(2)),
+    entrada: pagamento.entrada, saldoParcelado: pagamento.saldoParcelado,
+    parcelas: pagamento.parcelas, valorParcela: pagamento.valorParcela,
     espessura: campo('espessura'), pistao: campo('pistao'), corAssento: campo('corAssento'), representante: campo('representante'), localAssinatura: campo('localAssinatura'),
     mSela: true, tamanhoSela: campo('linhaSoft'), observacoesPedido: campo('observacoesPedido')
   };
@@ -656,7 +676,9 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   const p = contexto?.p || dadosPedido();
   const pageW = 210, margem = 12, largura = pageW - margem * 2;
   const temLombar = itensPdf.some(item => item.detalhes?.includes('Apoio lombar'));
-  const valorParcela = p.valorParcela || (p.total / p.parcelas);
+  const valorEntrada = Math.min(Math.max(0, Number(p.entrada) || 0), Math.max(0, Number(p.total) || 0));
+  const saldoParcelado = Math.max(0, Number(p.saldoParcelado ?? (Number(p.total) - valorEntrada)) || 0);
+  const valorParcela = Number(p.valorParcela) || (saldoParcelado / Math.max(1, Number(p.parcelas) || 1));
 
   const texto = (valor, padrao = '') => String(valor || padrao);
   const linha = (x1, y1, x2, y2) => doc.line(x1, y1, x2, y2);
@@ -755,10 +777,12 @@ function exportarPdfFabrica(modo = 'download', contexto = null) {
   doc.text('CONDIÇÕES DE PAGAMENTO', 18, yPagamento + 4.5);
   const resumoPagamento = [
     ['TOTAL DO PEDIDO', fmt(p.total)],
+    ['ENTRADA', fmt(valorEntrada)],
+    ['SALDO PARCELADO', fmt(saldoParcelado)],
     ['Nº DE PARCELAS', String(Math.max(1, Number(p.parcelas) || 1))],
     ['VALOR DA PARCELA', fmt(valorParcela)]
   ];
-  const larguraPagamento = 58;
+  const larguraPagamento = 36.4;
   resumoPagamento.forEach(([rotulo, valor], indice) => {
     const x = 18 + indice * larguraPagamento;
     if (indice > 0) linha(x - 2, yPagamento + 6.5, x - 2, yPagamento + 16.5);
@@ -2512,43 +2536,49 @@ function construirContextoPdfHistorico(pedido) {
       subtotal: Number(item.subtotal ?? unitario * quantidade)
     };
   });
+  const totalPedido = Number(snapshotSemEstrutura.total ?? pedido.raw?.total ?? 0);
+  const entradaPedido = Math.min(Math.max(0, Number(snapshotSemEstrutura.entrada ?? 0) || 0), Math.max(0, totalPedido));
+  const saldoParceladoPedido = Math.max(0, Number(snapshotSemEstrutura.saldoParcelado ?? (totalPedido - entradaPedido)) || 0);
+  const parcelasPedido = Math.max(1, Number(snapshotSemEstrutura.parcelas ?? pedido.raw?.installments ?? 1));
   const p = {
     ...snapshotSemEstrutura,
     pedido: snapshot.pedido || pedido.id,
     cliente: snapshot.cliente || clienteSnapshot.name || pedido.cliente || '',
     telefone: snapshot.telefone || clienteSnapshot.phone || pedido.telefone || '',
     data: snapshot.data || pedido.raw?.issue_date || '',
-    subtotal: Number(snapshot.subtotal ?? pedido.raw?.subtotal ?? 0),
-    descontoPct: Number(snapshot.descontoPct ?? pedido.raw?.discount_pct ?? 0),
-    desconto: Number(snapshot.desconto ?? pedido.raw?.discount_amount ?? 0),
-    frete: Number(snapshot.frete ?? pedido.raw?.freight ?? 0),
-    total: Number(snapshot.total ?? pedido.raw?.total ?? 0),
+    subtotal: Number(snapshotSemEstrutura.subtotal ?? pedido.raw?.subtotal ?? 0),
+    descontoPct: Number(snapshotSemEstrutura.descontoPct ?? pedido.raw?.discount_pct ?? 0),
+    desconto: Number(snapshotSemEstrutura.desconto ?? pedido.raw?.discount_amount ?? 0),
+    frete: Number(snapshotSemEstrutura.frete ?? pedido.raw?.freight ?? 0),
+    total: totalPedido,
+    entrada: entradaPedido,
+    saldoParcelado: saldoParceladoPedido,
     valorRecebido: Number(snapshot.valorRecebido ?? pedido.raw?.amount_received ?? 0),
-    parcelas: Math.max(1, Number(snapshot.parcelas ?? pedido.raw?.installments ?? 1)),
-    valorParcela: Number(snapshot.valorParcela ?? pedido.raw?.installment_amount ?? 0),
-    codigoEvento: snapshot.codigoEvento ?? clienteSnapshot.event_code ?? '',
-    cpf: snapshot.cpf ?? clienteSnapshot.cpf ?? '',
-    nascimento: snapshot.nascimento ?? clienteSnapshot.birth_date ?? '',
-    cnpj: snapshot.cnpj ?? clienteSnapshot.cnpj ?? '',
-    email: snapshot.email ?? clienteSnapshot.email ?? '',
-    profissao: snapshot.profissao ?? clienteSnapshot.profession ?? '',
-    rua: snapshot.rua ?? clienteSnapshot.address_line ?? '',
-    numero: snapshot.numero ?? clienteSnapshot.address_number ?? '',
-    complemento: snapshot.complemento ?? clienteSnapshot.address_complement ?? '',
-    bairro: snapshot.bairro ?? clienteSnapshot.neighborhood ?? '',
-    cidade: snapshot.cidade ?? clienteSnapshot.city ?? '',
-    uf: snapshot.uf ?? clienteSnapshot.state ?? '',
-    cep: snapshot.cep ?? clienteSnapshot.postal_code ?? '',
-    medidaAltura: snapshot.medidaAltura ?? clienteSnapshot.height ?? '',
-    peso: snapshot.peso ?? clienteSnapshot.weight ?? '',
-    espessura: snapshot.espessura ?? pedido.espuma ?? '',
-    pistao: snapshot.pistao ?? pedido.pistao ?? '',
-    corAssento: snapshot.corAssento ?? pedido.corAssento ?? '',
-    representante: snapshot.representante ?? pedido.raw?.representative ?? '',
-    localAssinatura: snapshot.localAssinatura ?? pedido.raw?.signature_city ?? '',
-    mSela: snapshot.mSela ?? true,
-    tamanhoSela: snapshot.tamanhoSela ?? pedido.linha ?? '',
-    observacoesPedido: snapshot.observacoesPedido ?? pedido.raw?.notes ?? ''
+    parcelas: parcelasPedido,
+    valorParcela: Number(snapshotSemEstrutura.valorParcela ?? pedido.raw?.installment_amount ?? (saldoParceladoPedido / parcelasPedido)),
+    codigoEvento: snapshotSemEstrutura.codigoEvento ?? clienteSnapshot.event_code ?? '',
+    cpf: snapshotSemEstrutura.cpf ?? clienteSnapshot.cpf ?? '',
+    nascimento: snapshotSemEstrutura.nascimento ?? clienteSnapshot.birth_date ?? '',
+    cnpj: snapshotSemEstrutura.cnpj ?? clienteSnapshot.cnpj ?? '',
+    email: snapshotSemEstrutura.email ?? clienteSnapshot.email ?? '',
+    profissao: snapshotSemEstrutura.profissao ?? clienteSnapshot.profession ?? '',
+    rua: snapshotSemEstrutura.rua ?? clienteSnapshot.address_line ?? '',
+    numero: snapshotSemEstrutura.numero ?? clienteSnapshot.address_number ?? '',
+    complemento: snapshotSemEstrutura.complemento ?? clienteSnapshot.address_complement ?? '',
+    bairro: snapshotSemEstrutura.bairro ?? clienteSnapshot.neighborhood ?? '',
+    cidade: snapshotSemEstrutura.cidade ?? clienteSnapshot.city ?? '',
+    uf: snapshotSemEstrutura.uf ?? clienteSnapshot.state ?? '',
+    cep: snapshotSemEstrutura.cep ?? clienteSnapshot.postal_code ?? '',
+    medidaAltura: snapshotSemEstrutura.medidaAltura ?? clienteSnapshot.height ?? '',
+    peso: snapshotSemEstrutura.peso ?? clienteSnapshot.weight ?? '',
+    espessura: snapshotSemEstrutura.espessura ?? pedido.espuma ?? '',
+    pistao: snapshotSemEstrutura.pistao ?? pedido.pistao ?? '',
+    corAssento: snapshotSemEstrutura.corAssento ?? pedido.corAssento ?? '',
+    representante: snapshotSemEstrutura.representante ?? pedido.raw?.representative ?? '',
+    localAssinatura: snapshotSemEstrutura.localAssinatura ?? pedido.raw?.signature_city ?? '',
+    mSela: snapshotSemEstrutura.mSela ?? true,
+    tamanhoSela: snapshotSemEstrutura.tamanhoSela ?? pedido.linha ?? '',
+    observacoesPedido: snapshotSemEstrutura.observacoesPedido ?? pedido.raw?.notes ?? ''
   };
   return { p, itens: itensPdf };
 }
@@ -2635,6 +2665,7 @@ function editarPedidoHistorico(id) {
     desconto: p.descontoPct,
     frete: p.frete,
     valorTotal: p.total,
+    valorEntrada: p.entrada,
     parcelas: p.parcelas,
     espessura: p.espessura,
     pistao: p.pistao,
@@ -2727,7 +2758,9 @@ function novoPedido() {
   document.getElementById('data').value = '';
   ['codigoEvento', 'cpfCnpj', 'nascimento', 'cnpj', 'email', 'profissao', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'medidaAltura', 'peso', 'representante', 'localAssinatura', 'observacoesPedido'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('valorTotal').value = 0;
+  document.getElementById('valorEntrada').value = 0;
   document.getElementById('parcelas').value = 1;
+  document.getElementById('saldoParcelado').value = 0;
   document.getElementById('valorParcela').value = 0;
   document.getElementById('espessura').value = '';
   document.getElementById('pistao').value = '';
@@ -2755,6 +2788,7 @@ function preencherPedidoTeste() {
   const cidade = escolherTeste(['São Paulo', 'Campinas', 'Santos', 'Sorocaba', 'Jundiaí']);
   const numero = String(agora).slice(-6);
   const valor = Number((680 + Math.random() * 1120).toFixed(2));
+  const entrada = Number((valor * escolherTeste([0, .1, .2, .3])).toFixed(2));
   const parcelas = escolherTeste([1, 2, 3, 4]);
   const campo = (id, valorCampo) => { const elemento = document.getElementById(id); if (elemento) elemento.value = valorCampo; };
 
@@ -2773,6 +2807,7 @@ function preencherPedidoTeste() {
   campo('medidaAltura', escolherTeste(['1,65 m', '1,70 m', '1,75 m', '1,80 m']));
   campo('peso', escolherTeste(['60 kg', '72 kg', '80 kg', '88 kg']));
   campo('valorTotal', valor.toFixed(2));
+  campo('valorEntrada', entrada.toFixed(2));
   campo('parcelas', parcelas);
   campo('desconto', escolherTeste([0, 5, 10]));
   campo('frete', escolherTeste([0, 39.9, 59.9]));
@@ -2968,7 +3003,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnPreencherTeste').addEventListener('click', preencherPedidoTeste);
   document.getElementById('btnSair').addEventListener('click', sairDaSessao);
   document.getElementById('prospeccaoForm')?.addEventListener('submit', buscarProspecoes);
-  ['desconto', 'frete', 'parcelas'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
+  ['desconto', 'frete', 'parcelas', 'valorEntrada'].forEach(id => document.getElementById(id).addEventListener('input', renderTotais));
   document.getElementById('valorTotal')?.addEventListener('input', atualizarValorItemPrincipal);
   renderTotais();
 
