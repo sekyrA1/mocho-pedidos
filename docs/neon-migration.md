@@ -37,7 +37,7 @@ O comando exige que a identidade já exista em `neon_auth."user"`. Ele não defi
 
 Login, sessão e logout passam pelo Neon Auth. Recuperação usa `resetPasswordForEmail` e `resetPassword({ token, newPassword })`; o token sai imediatamente da barra de endereço e fica em memória. A entrega e o recebimento do e-mail de recuperação ainda precisam ser verificados com o endereço do administrador.
 
-O domínio `https://sekyra1.github.io` está autorizado no Neon Auth; localhost também está habilitado. Um novo domínio precisa ser adicionado à allowlist antes da publicação.
+Os domínios `https://mocho-pedidos.vercel.app` (produção) e `https://sekyra1.github.io` estão autorizados no Neon Auth; localhost também está habilitado. A função de busca aceita essas origens exatas. Um novo domínio precisa ser adicionado às allowlists de Auth e de pesquisa antes da publicação.
 
 ## Validação
 
@@ -70,4 +70,10 @@ Não executar `neon env pull` desse projeto sobre `.env.local`; use `.env.prospe
 
 ## Publicação
 
-`.github/workflows/pages.yml` executa instalação, testes, build e empacotamento antes de publicar no GitHub Pages. O artefato contém somente HTML, CSS, JS e assets; exclui conexões `.env`, SQL e código administrativo/backend. O host continua `https://sekyra1.github.io/mocho-pedidos/`.
+O host principal é `https://mocho-pedidos.vercel.app/`, no projeto Vercel existente `mocho-pedidos`, equipe `sekyrafps-3163s-projects`. `vercel.json` executa testes, build e empacotamento e publica somente `dist/`. O artefato contém HTML, CSS, JS e assets; exclui conexões `.env`, SQL e código administrativo/backend. `.vercelignore` também exclui segredos e arquivos locais do upload. A integração Git da Vercel publica os commits de `main`.
+
+O workflow GitHub Pages é somente manual (`workflow_dispatch`), para não continuar tratando esse endereço como publicação principal.
+
+```powershell
+npx vercel deploy --prod --yes --scope sekyrafps-3163s-projects
+```

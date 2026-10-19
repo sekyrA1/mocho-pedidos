@@ -9,7 +9,7 @@ const pool = new pg.Pool({ connectionString: connection.href, max: 3, connection
 attachDatabasePool(pool);
 const jwks = createRemoteJWKSet(new URL(process.env.MOCHO_AUTH_JWKS_URL));
 const issuer = new URL(process.env.MOCHO_AUTH_BASE_URL).origin;
-const origins = new Set(['https://sekyra1.github.io', 'http://localhost:3000', 'http://127.0.0.1:3000']);
+const origins = new Set(['https://mocho-pedidos.vercel.app', 'https://sekyra1.github.io', 'http://localhost:3000', 'http://127.0.0.1:3000']);
 const digest = value => createHash('sha256').update(value).digest('hex');
 async function cacheGet(key) {
   const { rows } = await pool.query('select payload from search_private.cache where key=$1 and expires_at>now()', [key]);

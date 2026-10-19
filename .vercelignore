@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+.neon
+node_modules
+dist
+tmp
+backups
+docs
+supabase
+*.log
