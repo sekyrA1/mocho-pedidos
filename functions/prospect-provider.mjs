@@ -15,16 +15,14 @@ export function distanceKm(a, b, c, d) {
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1-h)));
 }
 const normalized = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-export function categoryFilters(query) {
+export function categorySearchTerm(query) {
   const term = normalized(query);
-  if (/dent|odont/.test(term)) return ['["amenity"="dentist"]', '["healthcare"="dentist"]'];
-  if (/fisio/.test(term)) return ['["healthcare"="physiotherapist"]'];
-  if (/veterin/.test(term)) return ['["amenity"="veterinary"]'];
-  if (/hospit/.test(term)) return ['["amenity"="hospital"]'];
-  if (/clin|medic|saude/.test(term)) return ['["amenity"="clinic"]', '["amenity"="doctors"]', '["healthcare"="clinic"]'];
-  // Escape regex operators, then quote as an Overpass string; user input is never QL.
-  const literal = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return [`["name"~${JSON.stringify(literal)},i]`];
+  if (/dent|odont/.test(term)) return 'dentist';
+  if (/fisio/.test(term)) return 'physiotherapist';
+  if (/veterin/.test(term)) return 'veterinary';
+  if (/hospit/.test(term)) return 'hospital';
+  if (/clin|medic|saude/.test(term)) return 'clinic';
+  return query;
 }
 export async function fetchJSON(url, options = {}, timeout = 12000) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(timeout), headers: {
@@ -73,12 +71,17 @@ export function mapElements(elements, center, radius, limit) {
   return [...unique.values()].sort((a,b) => a.distanceKm-b.distanceKm).slice(0,limit);
 }
 export async function searchOSM(search, center) {
-  const around = `(around:${search.radius},${center.latitude},${center.longitude})`;
-  const statement = `[out:json][timeout:20];(${categoryFilters(search.query).map(filter => `nwr${filter}${around};`).join('')});out center tags 500;`;
-  const url = new URL('https://overpass.private.coffee/api/interpreter');
-  url.searchParams.set('data', statement);
-  const payload = await fetchJSON(url, {}, 28000);
-  if (payload.remark) throw new SearchError('A busca no mapa excedeu o tempo disponível. Tente um raio menor.');
+  // Interactive, user-triggered best-match search only: no paging, crawling or bulk POI download.
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  const dy=search.radius/111320, dx=dy/Math.cos(center.latitude*Math.PI/180);
+  const area=/rio de janeiro/i.test(search.area)?search.area:`${search.area}, Rio de Janeiro`;
+  url.search=new URLSearchParams({q:`${categorySearchTerm(search.query)} in ${area}`,format:'jsonv2',limit:String(search.pageSize),addressdetails:'1',extratags:'1',countrycodes:'br',layer:'poi',
+    viewbox:`${center.longitude-dx},${center.latitude+dy},${center.longitude+dx},${center.latitude-dy}`,bounded:'1','accept-language':'pt-BR,en'}).toString();
+  const rows = await fetchJSON(url, {}, 15000);
+  if(!Array.isArray(rows))throw new SearchError('O serviço de busca retornou uma resposta inválida.');
+  const elements=rows.map(row=>({type:row.osm_type,id:row.osm_id,lat:row.lat,lon:row.lon,tags:{...row.extratags,name:row.name,
+    amenity:row.type,'addr:street':row.address?.road,'addr:housenumber':row.address?.house_number,'addr:suburb':row.address?.suburb,'addr:city':row.address?.city || row.address?.town || center.city}}));
   return { provider: 'openstreetmap', attribution: '© OpenStreetMap contributors', attributionUrl: 'https://www.openstreetmap.org/copyright',
-    area: { ...center, radiusMeters: search.radius }, results: mapElements(payload.elements || [], center, search.radius, search.pageSize) };
+    area: { ...center, radiusMeters: search.radius }, results: mapElements(elements, center, search.radius, search.pageSize),
+    notice:'Seleção dos melhores resultados do OpenStreetMap; não é uma lista completa de estabelecimentos.' };
 }

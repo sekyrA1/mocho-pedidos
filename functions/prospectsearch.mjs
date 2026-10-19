@@ -29,6 +29,14 @@ async function providerSlot(provider, intervalMs) {
     on conflict(provider) do update set next_at=excluded.next_at where search_private.provider_slots.next_at<=now() returning provider`, [provider,intervalMs]);
   if (!rows.length) throw new SearchError('Outra busca está em andamento. Aguarde alguns segundos.', 429);
 }
+async function nominatimSlot() {
+  const { rows } = await pool.query(`insert into search_private.provider_slots(provider,next_at) values('nominatim',now()+interval '1100 milliseconds')
+    on conflict(provider) do update set next_at=greatest(now(),search_private.provider_slots.next_at)+interval '1100 milliseconds'
+    where search_private.provider_slots.next_at<now()+interval '3 seconds'
+    returning greatest(0,extract(epoch from(next_at-now()))*1000-1100) as delay`);
+  if(!rows.length)throw new SearchError('Outra busca está em andamento. Aguarde alguns segundos.',429);
+  if(Number(rows[0].delay)>0)await new Promise(resolve=>setTimeout(resolve,Math.ceil(Number(rows[0].delay))));
+}
 export default {
   async fetch(request) {
     const origin = request.headers.get('origin');
@@ -65,9 +73,9 @@ export default {
       stage='cache';
       const cached=await cacheGet(key);if(cached)return respond({...cached,cached:true});
       let center=await cacheGet('geo:'+digest(search.area.toLowerCase()));
-      if(!center){await providerSlot('nominatim',1100);stage='geocode';center=await geocode(search.area);await cacheSet('geo:'+digest(search.area.toLowerCase()),center,168);}
-      await providerSlot('overpass',5000);await quota('provider-day',100,86400);
-      stage='overpass';
+      if(!center){await nominatimSlot();stage='geocode';center=await geocode(search.area);await cacheSet('geo:'+digest(search.area.toLowerCase()),center,168);}
+      await nominatimSlot();await quota('provider-day',100,86400);
+      stage='osm-search';
       const result=await searchOSM(search,center);await cacheSet(key,result,24);
       // Keep quota/cache storage bounded without storing auth tokens or private customer data.
       await pool.query('delete from search_private.quotas where expires_at<now()');

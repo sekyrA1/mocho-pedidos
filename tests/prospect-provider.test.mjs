@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSearch, categoryFilters, mapElements, distanceKm } from '../functions/prospect-provider.mjs';
+import { parseSearch, categorySearchTerm, mapElements, distanceKm } from '../functions/prospect-provider.mjs';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 
 test('invalid bodies and unbounded searches are rejected', () => {
   for(const input of [null, [], {}, {query:'dentista',area:'Rio',radius:Infinity}, {query:'dentista',area:'Rio',radius:50001}, {query:'dentista',area:'Rio',pageSize:1000}]) assert.throws(()=>parseSearch(input));
   assert.equal(parseSearch({query:'dentista',area:'Rio'}).radius,10000);
-  assert.ok(categoryFilters('clínica odontológica').includes('["amenity"="dentist"]'));
+  assert.equal(categorySearchTerm('clínica odontológica'),'dentist');
   const attack='x"];out;["name"~".*';
-  assert.ok(categoryFilters(attack)[0].includes('\\"'));
+  assert.equal(categorySearchTerm(attack),attack);
 });
 test('results have stable identities, real distances and safe links', () => {
   const center={latitude:-22.9,longitude:-43.2,city:'Rio',state:'RJ'};

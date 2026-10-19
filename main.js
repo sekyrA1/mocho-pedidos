@@ -2507,7 +2507,7 @@ async function buscarProspecoes(evento) {
     renderProspecaoResultados();
     const sync = document.getElementById('prospeccaoSync');
     if (sync) sync.textContent = `${PROSPECCAO_RESULTADOS.length} oportunidades encontradas`;
-    if (aviso) aviso.textContent = 'Dados © OpenStreetMap contributors (ODbL). Cobertura comunitária; telefone e CNPJ podem não estar cadastrados. Resultados comparados com seus clientes.';
+    if (aviso) aviso.textContent = 'Seleção de resultados © OpenStreetMap contributors (ODbL), sem garantia de listar todos os locais. Telefone e CNPJ podem não estar cadastrados. Resultados comparados com seus clientes.';
   } catch (error) {
     console.error('Falha de conexão na prospecção:', error.name);
     if (aviso) aviso.textContent = 'A pesquisa demorou ou a conexão falhou. Tente novamente; o Google Maps também está disponível.';
