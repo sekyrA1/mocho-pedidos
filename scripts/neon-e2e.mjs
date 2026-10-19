@@ -13,13 +13,18 @@ page.setDefaultTimeout(20000);
 if(process.argv.includes('--search')) page.on('console', message => { if(message.type()==='error') console.log('Browser:', message.text()); });
 page.on('pageerror', error => failures.push(error.message));
 const config = { authUrl: process.env.NEON_AUTH_BASE_URL, dataApiUrl: process.env.NEON_DATA_API_URL, prospectSearchUrl: process.env.NEON_PROSPECT_SEARCH_URL };
-await page.route('**/neon-config.js*', route => route.fulfill({ contentType: 'text/javascript', body: 'window.NEON_CONFIG=' + JSON.stringify(config) }));
+const site = process.env.MOCHO_SITE_URL || 'http://localhost:3000/';
+if(!process.env.MOCHO_SITE_URL) await page.route('**/neon-config.js*', route => route.fulfill({ contentType: 'text/javascript', body: 'window.NEON_CONFIG=' + JSON.stringify(config) }));
 const email = `migration-${randomBytes(5).toString('hex')}@example.invalid`;
 const password = randomBytes(24).toString('base64url');
 let userId, customerId, orderId;
 try {
-  await page.goto('http://localhost:3000/pedidos.html');
+  await page.goto(new URL('pedidos.html',site).href);
   await page.waitForURL('**/admin.html**');
+  if(process.env.MOCHO_SITE_URL) {
+    const published=await page.evaluate(()=>window.NEON_CONFIG);
+    assert.deepEqual(published,config);console.log('PASS: site público usa os endpoints Neon publicados');
+  }
   console.log('PASS: acesso sem sessão redirecionado ao login');
   const signup = await page.evaluate(async credentials => {
     const result = await window.appPasswordAuth.signUp.email({ ...credentials, name: 'Teste de migração' });
@@ -48,6 +53,7 @@ try {
     assert.equal(response.status(),200, payload.error);
     assert.equal(payload.provider,'openstreetmap'); assert.ok(payload.results.length>0);
     await page.locator('.prospect-card').first().waitFor();
+    mkdirSync('tmp',{recursive:true});await page.screenshot({path:'tmp/neon-search.png',fullPage:true});
     await page.locator('.prospect-card').first().getByRole('button', {name:/Salvar/}).click();
     await page.locator('#prospeccaoSalvos .prospect-salvo').first().waitFor();
     await page.locator('#prospeccaoSalvos .prospect-status-select').first().selectOption('qualified');
@@ -62,7 +68,14 @@ try {
     assert.equal(malformed.status,400);
     const hostile = await fetch(config.prospectSearchUrl,{method:'POST',headers:{Origin:'https://untrusted.example',Authorization:`Bearer ${token}`},body:'{}'});
     assert.equal(hostile.status,403);
-    console.log('PASS: busca rejeita anônimo, origem indevida e corpo inválido');
+    await db.query("update public.profiles set role='viewer' where id=$1",[userId]);
+    const viewer=await fetch(config.prospectSearchUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});
+    assert.equal(viewer.status,403);
+    await db.query("update public.profiles set role='admin',active=false where id=$1",[userId]);
+    const inactive=await fetch(config.prospectSearchUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});
+    assert.equal(inactive.status,403);
+    await db.query('update public.profiles set active=true where id=$1',[userId]);
+    console.log('PASS: busca rejeita anônimo, perfil viewer/inativo, origem indevida e corpo inválido');
     await page.evaluate(() => window.navegarDashboard('inicio'));
   }
   const crud = await page.evaluate(async () => {

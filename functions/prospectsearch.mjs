@@ -24,11 +24,6 @@ async function quota(key, limit, seconds) {
     on conflict(key,bucket) do update set count=search_private.quotas.count+1 where search_private.quotas.count<$3 returning count`, [key,window,limit,seconds]);
   if (!rows.length) throw new SearchError('Limite temporário de buscas atingido. Aguarde antes de tentar novamente.', 429);
 }
-async function providerSlot(provider, intervalMs) {
-  const { rows } = await pool.query(`insert into search_private.provider_slots(provider,next_at) values($1,now()+($2*interval '1 millisecond'))
-    on conflict(provider) do update set next_at=excluded.next_at where search_private.provider_slots.next_at<=now() returning provider`, [provider,intervalMs]);
-  if (!rows.length) throw new SearchError('Outra busca está em andamento. Aguarde alguns segundos.', 429);
-}
 async function nominatimSlot() {
   const { rows } = await pool.query(`insert into search_private.provider_slots(provider,next_at) values('nominatim',now()+interval '1100 milliseconds')
     on conflict(provider) do update set next_at=greatest(now(),search_private.provider_slots.next_at)+interval '1100 milliseconds'
