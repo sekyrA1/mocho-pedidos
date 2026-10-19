@@ -2504,6 +2504,11 @@ async function buscarProspecoes(evento) {
       return;
     }
     PROSPECCAO_RESULTADOS = data.results;
+    const latitude = Number(data.area?.latitude), longitude = Number(data.area?.longitude);
+    const mapa = document.getElementById('prospeccaoMapa');
+    if (mapa && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      mapa.src = `https://www.google.com/maps?q=${latitude},${longitude}&z=${radius <= 5000 ? 13 : 11}&output=embed`;
+    }
     renderProspecaoResultados();
     const sync = document.getElementById('prospeccaoSync');
     if (sync) sync.textContent = `${PROSPECCAO_RESULTADOS.length} oportunidades encontradas`;

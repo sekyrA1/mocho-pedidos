@@ -53,6 +53,7 @@ try {
     assert.equal(response.status(),200, payload.error);
     assert.equal(payload.provider,'openstreetmap'); assert.ok(payload.results.length>0);
     await page.locator('.prospect-card').first().waitFor();
+    assert.ok((await page.locator('#prospeccaoMapa').getAttribute('src')).includes(`${payload.area.latitude},${payload.area.longitude}`));
     mkdirSync('tmp',{recursive:true});await page.screenshot({path:'tmp/neon-search.png',fullPage:true});
     await page.locator('.prospect-card').first().getByRole('button', {name:/Salvar/}).click();
     await page.locator('#prospeccaoSalvos .prospect-salvo').first().waitFor();
