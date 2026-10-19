@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const nav = document.querySelector('.nav-tabs');
   const indicator = document.querySelector('.nav-indicator');
   const links = [...document.querySelectorAll('.nav-tab[href^="#"]')];
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let lerpFrame;
   function rolarComLerp(section) {
+    if (reducedMotion.matches) { section.scrollIntoView({ behavior: 'instant' }); return; }
     cancelAnimationFrame(lerpFrame);
     const inicio = window.scrollY;
     const destino = Math.max(0, section.getBoundingClientRect().top + window.scrollY - document.querySelector('.topbar').offsetHeight - 14);
@@ -85,11 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const clonesAntes = cardsOriginais.slice(-3).map(slide => {
     const clone = slide.cloneNode(true);
     clone.dataset.carouselClone = 'before'; clone.setAttribute('aria-hidden', 'true');
+    clone.inert = true;
     return clone;
   });
   const clonesDepois = cardsOriginais.slice(0, 3).map(slide => {
     const clone = slide.cloneNode(true);
     clone.dataset.carouselClone = 'after'; clone.setAttribute('aria-hidden', 'true');
+    clone.inert = true;
     return clone;
   });
   carouselWrapper.prepend(...clonesAntes);
@@ -98,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const carousel = new Swiper('.carousel-swiper', {
     slidesPerView: 1,
     spaceBetween: 16,
-    speed: 650,
+    speed: reducedMotion.matches ? 0 : 450,
     grabCursor: true,
     initialSlide: 3,
     centeredSlides: true,
@@ -115,6 +119,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const indiceFinal = indiceInicial + totalCards - 1;
   let reposicionando = false;
   let timerAutoplay;
+  let autoplayPaused = true;
+  const pauseButton = document.createElement('button');
+  pauseButton.type = 'button'; pauseButton.className = 'carousel-pause';
+  pauseButton.textContent = 'Reproduzir automaticamente';
+  pauseButton.setAttribute('aria-pressed', 'false');
+  document.querySelector('.carousel-controls').append(pauseButton);
+  pauseButton.addEventListener('click', () => {
+    autoplayPaused = !autoplayPaused;
+    pauseButton.textContent = autoplayPaused ? 'Reproduzir automaticamente' : 'Pausar carrossel';
+    pauseButton.setAttribute('aria-pressed', String(!autoplayPaused));
+    iniciarAutoplay();
+  });
   function indiceReal() {
     return ((carousel.activeIndex - indiceInicial) % totalCards + totalCards) % totalCards;
   }
@@ -132,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function iniciarAutoplay() {
     clearInterval(timerAutoplay);
+    if (autoplayPaused || reducedMotion.matches || document.hidden || carouselHost.matches(':hover') || carouselHost.contains(document.activeElement)) return;
     timerAutoplay = setInterval(() => moverCarrossel(1), 4200);
   }
   previousButton.addEventListener('click', () => { moverCarrossel(-1); iniciarAutoplay(); });
@@ -156,6 +173,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   carousel.on('slideChange resize', atualizarStatusCarrossel);
   const carouselHost = document.querySelector('.carousel-swiper');
+  carouselHost.addEventListener('focusin', () => clearInterval(timerAutoplay));
+  carouselHost.addEventListener('focusout', () => setTimeout(iniciarAutoplay, 0));
+  document.addEventListener('visibilitychange', iniciarAutoplay);
+  reducedMotion.addEventListener('change', () => {
+    carousel.params.speed = reducedMotion.matches ? 0 : 450;
+    iniciarAutoplay();
+  });
   carouselHost.addEventListener('pointermove', evento => {
     const imagemAtiva = evento.target.closest('.swiper-slide-active .model-image-wrap');
     if (!imagemAtiva) return;
@@ -181,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tiltCard = document.querySelector('[data-tilt-card]');
   if (tiltCard && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     tiltCard.addEventListener('pointermove', event => {
+      if (reducedMotion.matches || event.pointerType !== 'mouse') return;
       const bounds = tiltCard.getBoundingClientRect();
       const x = (event.clientX - bounds.left) / bounds.width - .5;
       const y = (event.clientY - bounds.top) / bounds.height - .5;

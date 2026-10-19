@@ -10,7 +10,7 @@
     } catch (_) {
       // Storage can be unavailable in private browsing; the page still works.
     }
-    return dashboard ? 'dark' : 'light';
+    return 'light';
   };
 
   const saveTheme = (theme) => {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://skzvmjocbwdboxvqvngc.supabase.co wss://skzvmjocbwdboxvqvngc.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com; frame-src 'self' blob:; worker-src 'self' blob:; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.neon.build https://*.neon.tech https://fonts.googleapis.com https://fonts.gstatic.com; frame-src 'self' blob:; worker-src 'self' blob:; form-action 'self'; upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
 <title>Duo Equilibrium — Soluções Ergonômicas</title>
 <link rel="icon" type="image/png" href="assets/logo-duo-equilibrium.png">
@@ -12,8 +12,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="landing.css?v=duo-ui-20260818">
+<link rel="stylesheet" href="ux.css?v=20260909">
 </head>
-<body>
+<body data-ui="landing">
 
 <div class="scroll-progress" aria-hidden="true"></div>
 
@@ -313,10 +314,11 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/swiper@11.2.10/swiper-bundle.min.js" integrity="sha384-2UI1PfnXFjVMQ7/ZDEF70CR943oH3v6uZrFQGGqJYlvhh4g6z6uVktxYbOlAczav" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.102.0/dist/umd/supabase.min.js" integrity="sha384-1qxdq7qui0E5OGQx7KlSCCpPydLIt8lgUjqM3jGxWLXq9AIGC661VIvU/NPT6BQP" crossorigin="anonymous"></script>
-<script src="supabase-client.js?v=security-20260815"></script>
-<script src="theme.js?v=light-mode-20260816"></script>
-<script src="landing.js?v=duo-ui-20260818"></script>
+<script src="neon-config.js?v=20261019"></script>
+<script src="assets/neon-client.js?v=20261019"></script>
+<script src="theme.js?v=20260909"></script>
+<script src="landing.js?v=20260909"></script>
 
+<script src="ux.js?v=20260909"></script>
 </body>
 </html>

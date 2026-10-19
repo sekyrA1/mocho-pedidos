@@ -1081,16 +1081,10 @@ async function sairDaSessao() {
     botao.textContent = 'Saindo…';
   }
   try {
-    if (window.appSupabase) {
-      const { error } = await window.appSupabase.auth.signOut({ scope: 'local' });
+    if (window.appBackend) {
+      const { error } = await window.appBackend.auth.signOut({ scope: 'local' });
       if (error) throw error;
     }
-    // Mantém a limpeza explícita para versões/caches antigos do cliente Supabase.
-    const chavesSessao = ['sb-skzvmjocbwdboxvqvngc-auth-token'];
-    chavesSessao.forEach(chave => {
-      window.localStorage?.removeItem(chave);
-      window.sessionStorage?.removeItem(chave);
-    });
     window.currentAuth = null;
     const destino = new URL('admin.html', window.location.href);
     destino.searchParams.set('reason', 'logout');
@@ -1109,8 +1103,8 @@ async function sairDaSessao() {
 async function obterUserId() {
   const atual = userIdAtual();
   if (atual) return atual;
-  if (!window.appSupabase) return null;
-  const { data: { user } = {} } = await window.appSupabase.auth.getUser();
+  if (!window.appBackend) return null;
+  const { data: { user } = {} } = await window.appBackend.auth.getUser();
   return user?.id || null;
 }
 
@@ -1120,7 +1114,7 @@ function gerarNumeroPedido() {
   return `PED-${ano}-${sequencial}`;
 }
 
-function mensagemErroSupabase(error) {
+function mensagemErroBanco(error) {
   if (!error) return 'erro desconhecido';
   if (error.code === '23505') return 'o número do pedido já existe';
   if (error.code === '23514') return 'algum campo não atende às regras do banco';
@@ -1151,7 +1145,7 @@ async function salvarCliente(p, userId) {
 
   let existente = null;
   const buscar = async (campo, valor) => {
-    const { data, error } = await window.appSupabase
+    const { data, error } = await window.appBackend
       .from('customers')
       .select('id')
       .ilike(campo, valor)
@@ -1164,7 +1158,7 @@ async function salvarCliente(p, userId) {
   if (!existente && p.telefone) existente = await buscar('phone', p.telefone);
 
   if (existente) {
-    const { data, error } = await window.appSupabase
+    const { data, error } = await window.appBackend
       .from('customers')
       .update(cliente)
       .eq('id', existente.id)
@@ -1174,7 +1168,7 @@ async function salvarCliente(p, userId) {
     return data.id;
   }
 
-  const { data, error } = await window.appSupabase
+  const { data, error } = await window.appBackend
     .from('customers')
     .insert({ ...cliente, created_by: userId })
     .select('id')
@@ -1211,7 +1205,7 @@ async function salvarPedido() {
     toast(problema, 'error');
     return;
   }
-  if (!window.appSupabase) {
+  if (!window.appBackend) {
     toast('Banco de dados indisponível.', 'error');
     return;
   }
@@ -1258,7 +1252,7 @@ async function salvarPedido() {
     };
     let pedidoSalvo;
     if (emEdicao) {
-      const { data, error } = await window.appSupabase
+      const { data, error } = await window.appBackend
         .from('orders')
         .update(dadosOrdem)
         .eq('id', pedidoEmEdicaoId)
@@ -1267,7 +1261,7 @@ async function salvarPedido() {
       pedidoSalvo = data;
       if (error) throw error;
     } else {
-      const { data, error } = await window.appSupabase
+      const { data, error } = await window.appBackend
         .from('orders')
         .insert({ ...dadosOrdem, status: 'draft', created_by: userId })
         .select('id')
@@ -1287,7 +1281,7 @@ async function salvarPedido() {
       manufacturing_notes: item.detalhes
     }));
     if (emEdicao) {
-      const { data: itensExistentes, error: erroBuscaItens } = await window.appSupabase
+      const { data: itensExistentes, error: erroBuscaItens } = await window.appBackend
         .from('order_items')
         .select('id')
         .eq('order_id', pedidoSalvo.id)
@@ -1298,14 +1292,14 @@ async function salvarPedido() {
         const itemBanco = itensBanco[indice];
         const itemExistente = itensExistentes?.[indice];
         if (itemExistente) {
-          const { error } = await window.appSupabase
+          const { error } = await window.appBackend
             .from('order_items')
             .update(itemBanco)
             .eq('id', itemExistente.id)
             .eq('order_id', pedidoSalvo.id);
           if (error) throw error;
         } else {
-          const { error } = await window.appSupabase
+          const { error } = await window.appBackend
             .from('order_items')
             .insert({ ...itemBanco, order_id: pedidoSalvo.id });
           if (error) throw error;
@@ -1314,7 +1308,7 @@ async function salvarPedido() {
 
       const itensRemover = (itensExistentes || []).slice(itensBanco.length).map(item => item.id);
       if (itensRemover.length) {
-        const { error } = await window.appSupabase
+        const { error } = await window.appBackend
           .from('order_items')
           .delete()
           .eq('order_id', pedidoSalvo.id)
@@ -1322,7 +1316,7 @@ async function salvarPedido() {
         if (error) throw error;
       }
     } else {
-      const { error: erroItens } = await window.appSupabase
+      const { error: erroItens } = await window.appBackend
         .from('order_items')
         .insert(itensBanco.map(item => ({ ...item, order_id: pedidoSalvo.id })));
       if (erroItens) throw erroItens;
@@ -1341,7 +1335,7 @@ async function salvarPedido() {
     console.error('Falha ao salvar pedido:', error);
     botao.disabled = false;
     botao.textContent = emEdicao ? 'Atualizar pedido' : 'Salvar pedido';
-    toast(`Não foi possível salvar: ${mensagemErroSupabase(error)}`, 'error');
+    toast(`Não foi possível salvar: ${mensagemErroBanco(error)}`, 'error');
   }
 }
 
@@ -1420,9 +1414,9 @@ function normalizarDigitos(valor) {
 async function carregarDadosRemotos() {
   const sync = document.getElementById('dashboardSync');
   const historicoSync = document.getElementById('historicoSync');
-  if (!window.appSupabase) return false;
+  if (!window.appBackend) return false;
   try {
-    const { data: pedidos, error: erroPedidos } = await window.appSupabase
+    const { data: pedidos, error: erroPedidos } = await window.appBackend
       .from('orders')
       .select('id, order_number, status, issue_date, subtotal, discount_pct, discount_amount, freight, total, amount_received, installments, installment_amount, representative, signature_city, notes, customer_snapshot, order_snapshot, created_at, updated_at, customers(*)')
       .order('issue_date', { ascending: false })
@@ -1432,7 +1426,7 @@ async function carregarDadosRemotos() {
     const ids = (pedidos || []).map(pedido => pedido.id);
     let itensBanco = [];
     if (ids.length) {
-      const { data, error } = await window.appSupabase
+      const { data, error } = await window.appBackend
         .from('order_items')
         .select('id, order_id, product_name, quantity, foam_line, piston, saddle_model, saddle_size, seat_color, unit_price, manufacturing_notes')
         .in('order_id', ids);
@@ -1447,7 +1441,7 @@ async function carregarDadosRemotos() {
 
     const podeProspecção = ['admin', 'sales'].includes(window.currentAuth?.profile?.role);
     if (podeProspecção) {
-      const { data: clientes, error: erroClientes } = await window.appSupabase
+      const { data: clientes, error: erroClientes } = await window.appBackend
         .from('customers')
         .select('id, name, contact_name, phone, email, cnpj, address_line, address_number, neighborhood, city, state')
         .order('updated_at', { ascending: false });
@@ -1941,9 +1935,9 @@ function renderFinanceiro() {
 
 async function carregarDadosFinanceiros() {
   const sync = document.getElementById('financeSync');
-  if (!window.appSupabase || window.currentAuth?.profile?.role !== 'admin') return false;
+  if (!window.appBackend || window.currentAuth?.profile?.role !== 'admin') return false;
   try {
-    const { data, error } = await window.appSupabase
+    const { data, error } = await window.appBackend
       .from('finance_transactions')
       .select('id, type, status, transaction_date, due_date, category, description, amount, payment_method, counterparty, order_id, material_name, material_quantity, material_unit, material_unit_cost, notes, created_by, updated_by, created_at, updated_at')
       .order('transaction_date', { ascending: false })
@@ -2012,11 +2006,11 @@ async function salvarLancamentoFinanceiro(evento) {
     created_by: userId,
     updated_by: userId
   };
-  const { error } = await window.appSupabase.from('finance_transactions').insert(payload);
+  const { error } = await window.appBackend.from('finance_transactions').insert(payload);
   if (botao) { botao.disabled = false; botao.textContent = 'Salvar lançamento'; }
   if (error) {
     console.error('Falha ao salvar lançamento financeiro:', error);
-    toast(`Não foi possível salvar: ${mensagemErroSupabase(error)}`, 'error');
+    toast(`Não foi possível salvar: ${mensagemErroBanco(error)}`, 'error');
     return;
   }
   fecharFormularioFinanceiro(true);
@@ -2028,10 +2022,10 @@ async function excluirLancamentoFinanceiro(id) {
   const lancamento = financeTransactions.find(item => item.id === id);
   if (!lancamento || window.currentAuth?.profile?.role !== 'admin') return;
   if (!window.confirm(`Excluir o lançamento “${lancamento.description}”?`)) return;
-  const { error } = await window.appSupabase.from('finance_transactions').delete().eq('id', id);
+  const { error } = await window.appBackend.from('finance_transactions').delete().eq('id', id);
   if (error) {
     console.error('Falha ao excluir lançamento financeiro:', error);
-    toast(`Não foi possível excluir: ${mensagemErroSupabase(error)}`, 'error');
+    toast(`Não foi possível excluir: ${mensagemErroBanco(error)}`, 'error');
     return;
   }
   await carregarDadosFinanceiros();
@@ -2070,7 +2064,7 @@ function iniciarNavegacaoDashboard() {
     if (!opcoes.silencioso && window.location.hash !== `#${destino}`) {
       window.history.pushState({ dashboardPage: destino }, '', `${window.location.pathname}${window.location.search}#${destino}`);
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
   window.navegarDashboard = navegar;
   botoes.forEach(botao => botao.addEventListener('click', () => navegar(botao.dataset.dashboardNav)));
@@ -2086,6 +2080,7 @@ function iniciarAtalhosDashboard() {
     return pagina.querySelector('input[type="search"]') || pagina.querySelector('input[placeholder*="Buscar"]');
   };
   document.addEventListener('keydown', evento => {
+    if (document.querySelector('dialog[open]')) return;
     const elemento = evento.target;
     const digitando = ['INPUT', 'TEXTAREA', 'SELECT'].includes(elemento?.tagName) || elemento?.isContentEditable;
     if (digitando || evento.ctrlKey || evento.metaKey || evento.altKey) return;
@@ -2264,13 +2259,13 @@ async function alterarStatusPedido(id, novoStatus) {
     return;
   }
   const userId = await obterUserId();
-  if (!userId || !window.appSupabase) {
+  if (!userId || !window.appBackend) {
     toast('Sua sessão expirou. Entre novamente no painel.', 'error');
     renderHistoricoPedidos();
     return;
   }
   toast('Atualizando status…', 'loading');
-  const { data, error } = await window.appSupabase
+  const { data, error } = await window.appBackend
     .from('orders')
     .update({ status: novoStatus, updated_by: userId })
     .eq('id', pedido.dbId)
@@ -2278,7 +2273,7 @@ async function alterarStatusPedido(id, novoStatus) {
     .maybeSingle();
   if (error || !data) {
     console.error('Falha ao alterar status:', error);
-    toast(`Não foi possível alterar: ${mensagemErroSupabase(error || { message: 'operação não autorizada' })}`, 'error');
+    toast(`Não foi possível alterar: ${mensagemErroBanco(error || { message: 'operação não autorizada' })}`, 'error');
     renderHistoricoPedidos();
     return;
   }
@@ -2363,7 +2358,7 @@ function renderProspecaoResultados() {
     meta.append(distancia, telefone, cnpj);
     const acoes = document.createElement('div');
     acoes.className = 'prospect-card-actions';
-    if (resultado.mapsUrl) acoes.appendChild(criarLinkProspect('Google Maps ↗', resultado.mapsUrl));
+    if (resultado.mapsUrl) acoes.appendChild(criarLinkProspect(resultado.provider === 'openstreetmap' ? 'OpenStreetMap ↗' : 'Google Maps ↗', resultado.mapsUrl));
     if (resultado.website) acoes.appendChild(criarLinkProspect('Site ↗', resultado.website));
     if (!cliente && !salvo) {
       const cnpjInput = document.createElement('input');
@@ -2437,13 +2432,13 @@ function renderProspecoesSalvas() {
 }
 
 async function atualizarProspect(id, alteracoes) {
-  if (!window.appSupabase || !podeGerenciarPedidos()) return;
+  if (!window.appBackend || !podeGerenciarPedidos()) return;
   const userId = await obterUserId();
   if (!userId) {
     toast('Sua sessão expirou. Entre novamente no painel.', 'error');
     return;
   }
-  const { data, error } = await window.appSupabase
+  const { data, error } = await window.appBackend
     .from('prospects')
     .update({ ...alteracoes, updated_by: userId })
     .eq('id', id)
@@ -2451,7 +2446,7 @@ async function atualizarProspect(id, alteracoes) {
     .single();
   if (error) {
     console.error('Falha ao atualizar prospect:', error);
-    toast(`Não foi possível atualizar o lead: ${mensagemErroSupabase(error)}`, 'error');
+    toast(`Não foi possível atualizar o lead: ${mensagemErroBanco(error)}`, 'error');
     return;
   }
   PROSPECTS_SALVOS = PROSPECTS_SALVOS.map(item => item.id === id ? data : item);
@@ -2460,8 +2455,8 @@ async function atualizarProspect(id, alteracoes) {
 }
 
 async function carregarProspecoesSalvas() {
-  if (!window.appSupabase || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) return;
-  const { data, error } = await window.appSupabase
+  if (!window.appBackend || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) return;
+  const { data, error } = await window.appBackend
     .from('prospects')
     .select('id, google_place_id, business_name, address_line, neighborhood, city, status, priority, source_url, phone, cnpj, updated_at')
     .order('updated_at', { ascending: false });
@@ -2486,7 +2481,7 @@ function atualizarMapaProspecao(query, area) {
 
 async function buscarProspecoes(evento) {
   evento?.preventDefault();
-  if (!window.appSupabase || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) {
+  if (!window.appBackend || !['admin', 'sales'].includes(window.currentAuth?.profile?.role)) {
     toast('A prospecção está disponível apenas para vendas e administradores.', 'error');
     return;
   }
@@ -2499,14 +2494,12 @@ async function buscarProspecoes(evento) {
   if (botao) { botao.disabled = true; botao.textContent = 'Buscando…'; }
   if (aviso) aviso.textContent = 'Consultando oportunidades na área…';
   try {
-    const { data, error } = await window.appSupabase.functions.invoke('prospect-search', {
-      body: { query, area, radius, pageSize: 20 }
-    });
+    const { data, error } = await window.searchProspects({ query, area, radius, pageSize: 20 });
     if (error || !data?.results) {
       console.error('Falha na busca de prospecção:', error);
       PROSPECCAO_RESULTADOS = [];
       renderProspecaoResultados();
-      if (aviso) aviso.textContent = 'A busca detalhada ainda não está configurada. Use o botão para abrir a pesquisa no Google Maps.';
+      if (aviso) aviso.textContent = error?.error || error?.message || 'Não foi possível consultar a base de mapas. Tente novamente em instantes.';
       toast('Busca externa indisponível; o link do Google Maps continua disponível.', 'error');
       return;
     }
@@ -2514,14 +2507,18 @@ async function buscarProspecoes(evento) {
     renderProspecaoResultados();
     const sync = document.getElementById('prospeccaoSync');
     if (sync) sync.textContent = `${PROSPECCAO_RESULTADOS.length} oportunidades encontradas`;
-    if (aviso) aviso.textContent = 'Resultados comparados com os clientes cadastrados. CNPJ precisa de confirmação manual.';
+    if (aviso) aviso.textContent = 'Dados © OpenStreetMap contributors (ODbL). Cobertura comunitária; telefone e CNPJ podem não estar cadastrados. Resultados comparados com seus clientes.';
+  } catch (error) {
+    console.error('Falha de conexão na prospecção:', error.name);
+    if (aviso) aviso.textContent = 'A pesquisa demorou ou a conexão falhou. Tente novamente; o Google Maps também está disponível.';
+    toast('Não foi possível concluir a busca.', 'error');
   } finally {
     if (botao) { botao.disabled = false; botao.textContent = 'Buscar oportunidades'; }
   }
 }
 
 async function salvarProspect(resultado, cnpjInformado = '') {
-  if (!window.appSupabase || !podeGerenciarPedidos()) return;
+  if (!window.appBackend || !podeGerenciarPedidos()) return;
   const userId = await obterUserId();
   if (!userId) {
     toast('Sua sessão expirou. Entre novamente no painel.', 'error');
@@ -2534,12 +2531,12 @@ async function salvarProspect(resultado, cnpjInformado = '') {
     phone: resultado.phone || null,
     website: resultado.website || null,
     address_line: resultado.address || null,
-    city: 'Rio de Janeiro',
-    state: 'RJ',
+    city: resultado.city || 'Rio de Janeiro',
+    state: resultado.state || 'RJ',
     latitude: resultado.latitude,
     longitude: resultado.longitude,
     cnpj: cnpjInformado.replace(/\D/g, '').slice(0, 14) || null,
-    source_provider: 'google_places',
+    source_provider: resultado.provider || 'google_places',
     source_url: resultado.mapsUrl || null,
     status: 'new',
     priority: 'medium',
@@ -2547,10 +2544,10 @@ async function salvarProspect(resultado, cnpjInformado = '') {
     created_by: userId,
     updated_by: userId
   };
-  const { data, error } = await window.appSupabase.from('prospects').insert(payload).select('id, google_place_id, business_name, address_line, city, status, priority, updated_at').single();
+  const { data, error } = await window.appBackend.from('prospects').insert(payload).select('id, google_place_id, business_name, address_line, city, status, priority, updated_at').single();
   if (error) {
     console.error('Falha ao salvar prospect:', error);
-    toast(error.code === '23505' ? 'Este local já está na prospecção.' : `Não foi possível salvar: ${mensagemErroSupabase(error)}`, 'error');
+    toast(error.code === '23505' ? 'Este local já está na prospecção.' : `Não foi possível salvar: ${mensagemErroBanco(error)}`, 'error');
     return;
   }
   PROSPECTS_SALVOS = [data, ...PROSPECTS_SALVOS];
@@ -2753,19 +2750,19 @@ async function excluirPedidoHistorico(id) {
   if (!pedido?.dbId) return;
   const confirmado = window.confirm(`Excluir permanentemente o pedido ${pedido.id} de ${pedido.cliente}?\n\nEsta ação não pode ser desfeita.`);
   if (!confirmado) return;
-  if (!window.appSupabase) {
+  if (!window.appBackend) {
     toast('Banco de dados indisponível.', 'error');
     return;
   }
   toast(`Excluindo ${pedido.id}…`, 'loading');
-  const { data: removidos, error } = await window.appSupabase
+  const { data: removidos, error } = await window.appBackend
     .from('orders')
     .delete()
     .eq('id', pedido.dbId)
     .select('id');
   if (error) {
     console.error('Falha ao excluir pedido:', error);
-    toast(`Não foi possível excluir: ${mensagemErroSupabase(error)}`, 'error');
+    toast(`Não foi possível excluir: ${mensagemErroBanco(error)}`, 'error');
     return;
   }
   if (!removidos?.some(item => item.id === pedido.dbId)) {

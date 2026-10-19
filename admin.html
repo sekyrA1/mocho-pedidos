@@ -3,25 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://skzvmjocbwdboxvqvngc.supabase.co wss://skzvmjocbwdboxvqvngc.supabase.co; frame-src 'self' blob:; worker-src 'self' blob:; form-action 'self'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://*.neon.build https://*.neon.tech; frame-src 'self' blob:; worker-src 'self' blob:; form-action 'self'; upgrade-insecure-requests">
   <meta name="referrer" content="no-referrer">
   <title>Acesso administrativo · Duo Equilibrium</title>
   <link rel="icon" type="image/png" href="assets/logo-duo-equilibrium.png">
   <link rel="stylesheet" href="auth.css?v=duo-ui-20260818">
+<link rel="stylesheet" href="ux.css?v=20260909">
 </head>
-<body class="auth-page">
+<body class="auth-page" data-ui="auth">
   <main class="auth-shell">
     <section class="auth-aside" aria-label="Duo Equilibrium">
       <span class="auth-aside-kicker">Duo Equilibrium · Workspace</span>
-      <h2>Conforto também é uma decisão de negócio.</h2>
+      <h2>Da primeira conversa à próxima entrega.</h2>
       <p>Um espaço único para transformar cada conversa em um pedido bem definido, produzido com precisão.</p>
-      <div class="auth-aside-stats"><span><b>01</b><small>Catálogo vivo</small></span><span><b>24h</b><small>Operação conectada</small></span></div>
+      <div class="auth-aside-stats"><span><b>01</b><small>Crie o pedido</small></span><span><b>02</b><small>Acompanhe</small></span><span><b>03</b><small>Entregue</small></span></div>
     </section>
     <section class="auth-card" aria-labelledby="authTitle">
       <img class="auth-logo" src="assets/logo-duo-equilibrium.png" alt="Duo Equilibrium">
       <p class="auth-kicker">Área restrita</p>
       <h1 id="authTitle">Acesso ao painel</h1>
-      <p>Entre com o usuário convidado para acompanhar pedidos, produção e exportações.</p>
+      <p>Entre com sua conta autorizada para acompanhar pedidos, produção e exportações.</p>
 
       <form class="auth-form" id="loginForm">
         <label for="email">E-mail
@@ -74,8 +75,9 @@
       <a class="auth-back" href="index.html">Voltar para o site público</a>
     </section>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.102.0/dist/umd/supabase.min.js" integrity="sha384-1qxdq7qui0E5OGQx7KlSCCpPydLIt8lgUjqM3jGxWLXq9AIGC661VIvU/NPT6BQP" crossorigin="anonymous"></script>
-  <script src="supabase-client.js?v=security-20260815"></script>
-  <script src="auth.js?v=security-20260815"></script>
+    <script src="neon-config.js?v=20261019"></script>
+<script src="assets/neon-client.js?v=20261019"></script>
+  <script src="auth.js?v=neon-20261019"></script>
+<script src="ux.js?v=20260909"></script>
 </body>
 </html>

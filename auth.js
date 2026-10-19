@@ -1,203 +1,73 @@
-(function setupAdminAuth() {
-  const loginForm = document.getElementById('loginForm');
-  const recoveryForm = document.getElementById('recoveryForm');
-  const inviteTemplate = document.getElementById('inviteFormTemplate');
-  const resetTemplate = document.getElementById('resetFormTemplate');
-  let inviteForm = null;
-  let resetForm = null;
-  const message = document.getElementById('authMessage');
-  const submitLogin = document.getElementById('submitLogin');
-  const submitRecovery = document.getElementById('submitRecovery');
-  let submitInvite = null;
-  let submitReset = null;
-  const showRecovery = document.getElementById('showRecovery');
-  const backToLogin = document.getElementById('backToLogin');
-  const params = new URLSearchParams(window.location.search);
-  const sanitizeNext = value => {
-    try {
-      const target = new URL(value || 'pedidos.html', window.location.href);
-      const page = target.pathname.split('/').pop();
-      if (target.origin !== window.location.origin || page !== 'pedidos.html') return 'pedidos.html';
-      return page;
-    } catch {
-      return 'pedidos.html';
+(async function setupAdminAuth() {
+  const byId = id => document.getElementById(id);
+  const login = byId('loginForm'), recovery = byId('recoveryForm');
+  const message = (text, type = '') => { byId('authMessage').textContent = text; byId('authMessage').dataset.type = type; };
+  const params = new URLSearchParams(location.search);
+  const resetToken = params.get('token');
+  if (resetToken) history.replaceState({}, document.title, location.pathname);
+  byId('inviteFormTemplate')?.remove();
+  let reset = null;
+  if (resetToken) { reset = byId('resetFormTemplate').content.firstElementChild.cloneNode(true); recovery.after(reset); }
+  byId('resetFormTemplate')?.remove();
+  const show = form => [login, recovery, reset].filter(Boolean).forEach(item => { item.hidden = item !== form; });
+  const backend = window.appBackend;
+  if (!backend) {
+    message(window.backendConfigurationError || 'Não foi possível carregar a conexão com o Neon. Recarregue a página.', 'error');
+    byId('submitLogin').disabled = true; byId('submitRecovery').disabled = true; return;
+  }
+  const failure = error => {
+    if (error?.status === 429 || /rate.?limit|too many/i.test(error?.message || '')) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
+    if (/fetch|network|connection/i.test(error?.message || '')) return 'Não foi possível conectar ao Neon. Confira sua conexão e tente novamente.';
+    if (/verif|confirm/i.test(error?.message || '')) return 'Confirme seu e-mail antes de entrar.';
+    return 'Não foi possível entrar. Confira o e-mail e a senha.';
+  };
+  async function openPanel(session) {
+    if (!session) return;
+    const { data: profile, error } = await backend.from('profiles').select('id, display_name, role, active').eq('id', session.user.id).maybeSingle();
+    if (error) { message('Não foi possível consultar as permissões do perfil.', 'error'); return; }
+    if (!profile?.active || !['admin', 'sales', 'factory', 'viewer'].includes(profile.role)) {
+      await backend.auth.signOut();
+      message('Sua conta não tem um perfil ativo autorizado. Solicite a liberação ao administrador.', 'error'); return;
     }
-  };
-  const next = sanitizeNext(params.get('next'));
-  const inviteInHash = /(?:^|[#&])type=invite(?:&|$)/.test(window.location.hash);
-  const recoveryInHash = /(?:^|[#&])type=recovery(?:&|$)/.test(window.location.hash);
-
-  // Os fluxos especiais só entram no DOM quando o Supabase devolve o
-  // marcador correspondente no link. Assim, o login comum não carrega
-  // painéis de convite ou troca de senha na interface.
-  function mountForm(template, anchor) {
-    if (!template?.content?.firstElementChild) return null;
-    const form = template.content.firstElementChild.cloneNode(true);
-    anchor.insertAdjacentElement('afterend', form);
-    template.remove();
-    return form;
+    location.assign('pedidos.html');
   }
-
-  if (inviteInHash) inviteForm = mountForm(inviteTemplate, recoveryForm);
-  else inviteTemplate?.remove();
-  if (recoveryInHash) resetForm = mountForm(resetTemplate, inviteForm || recoveryForm);
-  else resetTemplate?.remove();
-  submitInvite = inviteForm?.querySelector('#submitInvite') || null;
-  submitReset = resetForm?.querySelector('#submitReset') || null;
-
-  const setMessage = (text, type = '') => {
-    message.textContent = text;
-    message.dataset.type = type;
-  };
-
-  const isAllowed = profile => profile?.active && ['admin', 'sales', 'factory', 'viewer'].includes(profile.role);
-
-  async function profileFor(session) {
-    const { data, error } = await window.appSupabase
-      .from('profiles')
-      .select('id, display_name, role, active')
-      .eq('id', session.user.id)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+  async function busy(button, action) {
+    button.disabled = true;
+    try { await action(); } catch (error) { message(failure(error), 'error'); } finally { button.disabled = false; }
   }
-
-  function redirectAfterAuth() {
-    window.location.assign(next);
-  }
-
-  function showOnly(form) {
-    [loginForm, recoveryForm, inviteForm, resetForm].filter(Boolean).forEach(item => {
-      item.hidden = item !== form;
+  login.addEventListener('submit', event => {
+    event.preventDefault();
+    busy(byId('submitLogin'), async () => {
+      message('Validando acesso…');
+      const { data, error } = await backend.auth.signInWithPassword({ email: byId('email').value.trim(), password: byId('password').value });
+      if (error) throw error;
+      await openPanel(data.session);
     });
-  }
-
-  async function handleSession(session) {
-    if (!session) return false;
-    try {
-      const profile = await profileFor(session);
-      if (!isAllowed(profile)) {
-        await window.appSupabase.auth.signOut();
-        setMessage('Seu usuário ainda não tem permissão para acessar o painel.', 'error');
-        return false;
-      }
-
-      if (inviteInHash) {
-        showOnly(inviteForm);
-        document.getElementById('inviteEmail').textContent = session.user.email || '';
-        setMessage('Convite confirmado. Defina uma senha para continuar.', 'success');
-      } else if (recoveryInHash) {
-        showOnly(resetForm);
-        setMessage('Link confirmado. Defina uma nova senha.', 'success');
-      } else {
-        redirectAfterAuth();
-      }
-      return true;
-    } catch (error) {
-      console.error(error);
-      setMessage('Não foi possível carregar seu perfil. Tente novamente.', 'error');
-      return false;
-    }
-  }
-
-  loginForm.addEventListener('submit', async event => {
+  });
+  byId('showRecovery').addEventListener('click', () => { byId('recoveryEmail').value = byId('email').value.trim(); show(recovery); message(''); });
+  byId('backToLogin').addEventListener('click', () => { show(login); message(''); });
+  recovery.addEventListener('submit', event => {
     event.preventDefault();
-    submitLogin.disabled = true;
-    setMessage('Validando acesso…');
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const { data, error } = await window.appSupabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      submitLogin.disabled = false;
-      setMessage('E-mail ou senha inválidos, ou convite ainda não confirmado.', 'error');
-      return;
-    }
-    await handleSession(data.session);
-    submitLogin.disabled = false;
+    busy(byId('submitRecovery'), async () => {
+      const { error } = await backend.auth.resetPasswordForEmail(byId('recoveryEmail').value.trim(), { redirectTo: new URL('admin.html', location.href).href });
+      if (error) throw error;
+      message('Se o e-mail estiver cadastrado, você receberá um link. Confira também o spam.', 'success');
+    });
   });
-
-  showRecovery.addEventListener('click', () => {
-    const email = document.getElementById('email').value.trim();
-    document.getElementById('recoveryEmail').value = email;
-    showOnly(recoveryForm);
-    setMessage('');
-  });
-
-  backToLogin.addEventListener('click', () => {
-    showOnly(loginForm);
-    setMessage('');
-  });
-
-  recoveryForm.addEventListener('submit', async event => {
+  reset?.addEventListener('submit', event => {
     event.preventDefault();
-    submitRecovery.disabled = true;
-    setMessage('Enviando link seguro…');
-    const email = document.getElementById('recoveryEmail').value.trim();
-    const redirectTo = new URL('admin.html', window.location.href);
-    redirectTo.search = '';
-    const { error } = await window.appSupabase.auth.resetPasswordForEmail(email, { redirectTo: redirectTo.href });
-    submitRecovery.disabled = false;
-    if (error) {
-      console.error(error);
-      if (error.status === 429 || /rate.?limit|too many/i.test(error.message || '')) {
-        setMessage('O Supabase atingiu o limite temporário de e-mails. Use o link mais recente ou aguarde antes de solicitar outro.', 'error');
-        return;
-      }
-      setMessage('Não foi possível enviar o link. Confira o e-mail e tente novamente.', 'error');
-      return;
-    }
-    setMessage('Link enviado. Verifique sua caixa de entrada e também a pasta de spam.', 'success');
+    busy(byId('submitReset'), async () => {
+      const password = byId('resetPassword').value;
+      if (password.length < 8 || password !== byId('resetPasswordConfirmation').value) { message('Use pelo menos 8 caracteres e repita a mesma senha.', 'error'); return; }
+      const { error } = await window.appPasswordAuth.resetPassword({ token: resetToken, newPassword: password });
+      if (error) { message('O link expirou ou não é válido. Solicite outro link de recuperação.', 'error'); return; }
+      show(login); message('Senha atualizada. Entre com sua nova senha.', 'success');
+    });
   });
-
-  inviteForm?.addEventListener('submit', async event => {
-    event.preventDefault();
-    submitInvite.disabled = true;
-    const password = document.getElementById('invitePassword').value;
-    const confirmation = document.getElementById('invitePasswordConfirmation').value;
-    if (password.length < 8 || password !== confirmation) {
-      submitInvite.disabled = false;
-      setMessage('Use pelo menos 8 caracteres e repita a mesma senha.', 'error');
-      return;
-    }
-    const { error } = await window.appSupabase.auth.updateUser({ password });
-    if (error) {
-      submitInvite.disabled = false;
-      setMessage('Não foi possível definir a senha. Tente novamente.', 'error');
-      return;
-    }
-    window.history.replaceState({}, document.title, window.location.pathname);
-    setMessage('Senha criada. Abrindo o painel…', 'success');
-    window.setTimeout(redirectAfterAuth, 400);
-  });
-
-  resetForm?.addEventListener('submit', async event => {
-    event.preventDefault();
-    submitReset.disabled = true;
-    const password = document.getElementById('resetPassword').value;
-    const confirmation = document.getElementById('resetPasswordConfirmation').value;
-    if (password.length < 8 || password !== confirmation) {
-      submitReset.disabled = false;
-      setMessage('Use pelo menos 8 caracteres e repita a mesma senha.', 'error');
-      return;
-    }
-    const { error } = await window.appSupabase.auth.updateUser({ password });
-    if (error) {
-      submitReset.disabled = false;
-      console.error(error);
-      setMessage('O link expirou ou não é mais válido. Solicite outro link.', 'error');
-      return;
-    }
-    window.history.replaceState({}, document.title, `${window.location.pathname}?next=${encodeURIComponent(next)}`);
-    setMessage('Senha atualizada. Abrindo o painel…', 'success');
-    window.setTimeout(redirectAfterAuth, 500);
-  });
-
-  if (!window.appSupabase) {
-    setMessage('Não foi possível carregar a conexão segura.', 'error');
-    return;
-  }
-
-  if (params.get('reason') === 'permission') setMessage('Sua sessão não tem permissão para acessar essa área.', 'error');
-  if (params.get('reason') === 'session') setMessage('Sua sessão expirou. Entre novamente ou recupere sua senha.', 'error');
-  window.appSupabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
+  if (resetToken) { show(reset); message('Defina sua nova senha.'); return; }
+  if (params.get('error')) { show(recovery); message('O link expirou ou não é válido. Solicite outro.', 'error'); return; }
+  if (params.get('reason') === 'permission') message('Sua conta não tem um perfil ativo autorizado.', 'error');
+  if (params.get('reason') === 'session') message('Sua sessão expirou. Entre novamente.', 'error');
+  try { const { data, error } = await backend.auth.getSession(); if (error) throw error; await openPanel(data.session); }
+  catch (error) { message(failure(error), 'error'); }
 })();
